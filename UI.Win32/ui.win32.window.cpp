@@ -43,6 +43,15 @@ namespace
         {
             PAINTSTRUCT ps;
             BeginPaint(hwnd, &ps);
+
+            // Sync selection and lasso state from the active tool into the renderer
+            g_d2d.selected_shapes = &g_select_tool->selected();
+            g_d2d.lasso_active    = g_select_tool->is_lasso_active();
+            g_d2d.lasso_x0        = g_select_tool->get_lasso_x0();
+            g_d2d.lasso_y0        = g_select_tool->get_lasso_y0();
+            g_d2d.lasso_x1        = g_select_tool->get_lasso_x1();
+            g_d2d.lasso_y1        = g_select_tool->get_lasso_y1();
+
             ui::win32::d2d::render(g_d2d);
             EndPaint(hwnd, &ps);
             return 0;

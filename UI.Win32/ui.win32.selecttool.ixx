@@ -43,6 +43,12 @@ namespace ui::win32
 
         const std::vector<const domain::Shape*>& selected() const noexcept { return selected_shapes; }
 
+        bool is_lasso_active()    const noexcept { return lasso_active; }
+        float get_lasso_x0()     const noexcept { return lasso_x0; }
+        float get_lasso_y0()     const noexcept { return lasso_y0; }
+        float get_lasso_x1()     const noexcept { return lasso_x1; }
+        float get_lasso_y1()     const noexcept { return lasso_y1; }
+
     private:
         domain::Diagram& diagram;
         SelectState state = SelectState::Idle;
