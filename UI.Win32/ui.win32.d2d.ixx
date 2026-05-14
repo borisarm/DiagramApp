@@ -11,7 +11,7 @@ import <vector>;
 import <string>;
 import domain.diagram;
 import domain.shape;
-import ui.win32.stencil;
+import ui.win32.stencil;  // for StencilItemKind (preview overlay)
 
 export namespace ui::win32::d2d
 {
@@ -27,7 +27,6 @@ export namespace ui::win32::d2d
         // DirectWrite
         Microsoft::WRL::ComPtr<IDWriteFactory>        dwrite_factory;
         Microsoft::WRL::ComPtr<IDWriteTextFormat>     status_text_format;
-        Microsoft::WRL::ComPtr<IDWriteTextFormat>     stencil_label_format;
 
         const domain::Diagram*                   diagram         = nullptr;
         const std::vector<const domain::Shape*>* selected_shapes = nullptr;
@@ -45,9 +44,6 @@ export namespace ui::win32::d2d
         std::wstring status_stencil;
         int          status_shape_count    = 0;
         int          status_selected_count = 0;
-
-        // Stencil panel (pointer — owned by window.cpp)
-        const Stencil* stencil = nullptr;
 
         // Add-tool preview overlay
         bool           preview_active = false;

@@ -27,7 +27,7 @@ namespace
     std::unique_ptr<ui::win32::SelectTool>        g_select_tool;
     std::unique_ptr<ui::win32::AddRectangleTool>  g_add_rect_tool;
     std::unique_ptr<ui::win32::AddEllipseTool>    g_add_ellipse_tool;
-    ui::win32::Stencil                            g_stencil;
+    ui::win32::StencilWindow                      g_stencil_window;
 
     // ----------------------------------------------------------------
     // Activates the add-tool that matches the chosen stencil tile and
@@ -36,7 +36,7 @@ namespace
     void activate_tool_for_stencil(ui::win32::StencilItemKind kind)
     {
         g_tool_manager.active_tool()->on_deactivate();
-        g_stencil.set_active(kind);
+        g_stencil_window.set_active(kind);
 
         if (kind == ui::win32::StencilItemKind::Rectangle)
         {
@@ -96,7 +96,7 @@ namespace
         const auto* active    = g_tool_manager.active_tool();
         g_d2d.status_tool     = active ? active->display_name() : L"—";
 
-        switch (g_stencil.active())
+        switch (g_stencil_window.active())
         {
         case ui::win32::StencilItemKind::Rectangle: g_d2d.status_stencil = L"Rectangle"; break;
         case ui::win32::StencilItemKind::Ellipse:   g_d2d.status_stencil = L"Ellipse";   break;
@@ -112,21 +112,13 @@ namespace
     // ----------------------------------------------------------------
     void on_create(HWND hwnd)
     {
-        g_hwnd    = hwnd;
-        g_d2d     = ui::win32::d2d::create_d2d_context(hwnd, &ui::win32::g_diagram);
-        g_d2d.stencil = &g_stencil;
-
-        RECT rc{};
-        GetClientRect(hwnd, &rc);
-        g_stencil.layout(static_cast<float>(rc.bottom - rc.top)
-                         - ui::win32::d2d::STATUS_BAR_HEIGHT);
+        g_hwnd = hwnd;
+        g_d2d  = ui::win32::d2d::create_d2d_context(hwnd, &ui::win32::g_diagram);
     }
 
     void on_size(UINT width, UINT height)
     {
         ui::win32::d2d::resize(g_d2d, width, height);
-        g_stencil.layout(static_cast<float>(height)
-                         - ui::win32::d2d::STATUS_BAR_HEIGHT);
     }
 
     void on_paint(HWND hwnd)
@@ -145,14 +137,6 @@ namespace
 
         if (fy >= g_d2d.canvas_rect.bottom) return; // status bar
 
-        if (fx < ui::win32::STENCIL_WIDTH)
-        {
-            auto kind = g_stencil.hit_test(fx, fy);
-            if (kind != ui::win32::StencilItemKind::None)
-                activate_tool_for_stencil(kind);
-            return;
-        }
-
         ui::win32::PointerEvent e{};
         e.x     = fx;
         e.y     = fy;
@@ -169,7 +153,6 @@ namespace
         const float fy = static_cast<float>(HIWORD(lParam));
 
         if (fy >= g_d2d.canvas_rect.bottom) return;
-        if (fx < ui::win32::STENCIL_WIDTH)  return;
 
         ui::win32::PointerEvent e{};
         e.x     = fx;
@@ -189,7 +172,6 @@ namespace
         ReleaseCapture();
 
         if (fy >= g_d2d.canvas_rect.bottom) return;
-        if (fx < ui::win32::STENCIL_WIDTH)  return;
 
         ui::win32::PointerEvent e{};
         e.x     = fx;
@@ -207,7 +189,7 @@ namespace
         if (done)
         {
             cur->on_deactivate();
-            g_stencil.set_active(ui::win32::StencilItemKind::None);
+            g_stencil_window.set_active(ui::win32::StencilItemKind::None);
             g_tool_manager.set_active_tool(g_select_tool.get());
             g_select_tool->on_activate();
         }
@@ -309,6 +291,15 @@ namespace ui::win32
 
         ShowWindow(hwnd, SW_SHOW);
         UpdateWindow(hwnd);
+
+        // Now that CW_USEDEFAULT is resolved, position the stencil palette
+        // just to the left of the main window.
+        {
+            RECT wr{};
+            GetWindowRect(hwnd, &wr);
+            g_stencil_window.on_tile_click = activate_tool_for_stencil;
+            g_stencil_window.create(hwnd, wr.left - 130, wr.top);
+        }
 
         MSG msg{};
         while (true)
