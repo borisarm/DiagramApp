@@ -18,6 +18,34 @@ namespace domain
             m_shapes.end());
     }
 
+    void Diagram::commit()
+    {
+        if (static_cast<int>(m_undo_stack.size()) >= MAX_UNDO)
+            m_undo_stack.erase(m_undo_stack.begin());
+
+        m_undo_stack.push_back(m_shapes);
+        m_redo_stack.clear();
+    }
+
+    void Diagram::undo()
+    {
+        if (m_undo_stack.empty()) return;
+        m_redo_stack.push_back(m_shapes);
+        m_shapes = m_undo_stack.back();
+        m_undo_stack.pop_back();
+    }
+
+    void Diagram::redo()
+    {
+        if (m_redo_stack.empty()) return;
+        m_undo_stack.push_back(m_shapes);
+        m_shapes = m_redo_stack.back();
+        m_redo_stack.pop_back();
+    }
+
+    bool Diagram::can_undo() const noexcept { return !m_undo_stack.empty(); }
+    bool Diagram::can_redo() const noexcept { return !m_redo_stack.empty(); }
+
     const std::vector<Shape>& Diagram::shapes() const noexcept
     {
         return m_shapes;

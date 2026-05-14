@@ -61,6 +61,7 @@ namespace ui::win32
         case SelectState::PressedOnShape:
             if (movement_exceeds_threshold(e.x, e.y))
             {
+                diagram.commit();
                 drag_start_x = e.x;
                 drag_start_y = e.y;
                 state = SelectState::Dragging;
@@ -123,8 +124,26 @@ namespace ui::win32
 
         if (e.key == VK_DELETE || e.key == VK_BACK)
         {
-            for (auto* s : selected_shapes)
-                diagram.remove_shape(s);
+            if (!selected_shapes.empty())
+            {
+                diagram.commit();
+                for (auto* s : selected_shapes)
+                    diagram.remove_shape(s);
+                selected_shapes.clear();
+                state = SelectState::Idle;
+            }
+        }
+
+        if (e.key == 'Z' && e.ctrl)
+        {
+            diagram.undo();
+            selected_shapes.clear();
+            state = SelectState::Idle;
+        }
+
+        if (e.key == 'Y' && e.ctrl)
+        {
+            diagram.redo();
             selected_shapes.clear();
             state = SelectState::Idle;
         }

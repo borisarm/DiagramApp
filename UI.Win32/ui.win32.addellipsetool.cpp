@@ -45,7 +45,10 @@ namespace ui::win32
 			float h = (m_y1 > m_y0 ? m_y1 - m_y0 : m_y0 - m_y1);
 
 			if (w > 2.f && h > 2.f)
+			{
+				m_diagram.commit();
 				m_diagram.add_shape(domain::Ellipse{ x, y, w, h });
+			}
 		}
 
 		m_previewing = false;
