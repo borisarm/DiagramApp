@@ -1,0 +1,20 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Docs/">
+    <File Path="Docs/architecture.md" />
+    <File Path="Docs/composites.md" />
+    <File Path="Docs/domain.md" />
+    <File Path="Docs/events.md" />
+    <File Path="Docs/geometry.md" />
+    <File Path="Docs/HSM_intructions.md" />
+    <File Path="Docs/layers.md" />
+    <File Path="Docs/renderer.md" />
+    <File Path="Docs/ui.md" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="Domain/Domain.vcxproj" Id="61ba2e5a-1d20-4ef9-92fe-33f1225ce3ea" />
+  <Project Path="UI.Win32/UI.Win32.vcxproj" Id="0053e1c6-1741-4234-b570-76fca26e1963" />
+</Solution>

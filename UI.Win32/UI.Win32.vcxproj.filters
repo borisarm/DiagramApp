@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Module FIles">
+      <UniqueIdentifier>{23596a71-1247-4bf0-8e57-c1dfa31554f6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ui.win32.main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.d2d.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.d2d.ixx">
+      <Filter>Module FIles</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.window.ixx">
+      <Filter>Module FIles</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.tool.ixx">
+      <Filter>Module FIles</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.toolmanager.ixx">
+      <Filter>Module FIles</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.selecttool.ixx">
+      <Filter>Module FIles</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.selecttool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.toolmanager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
