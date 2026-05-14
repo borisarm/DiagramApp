@@ -1,12 +1,21 @@
 module domain.diagram;
 
 import domain.shape;
+import <algorithm>;
 
 namespace domain
 {
     void Diagram::add_shape(const Shape& s)
     {
         m_shapes.push_back(s);
+    }
+
+    void Diagram::remove_shape(const Shape* s)
+    {
+        m_shapes.erase(
+            std::remove_if(m_shapes.begin(), m_shapes.end(),
+                [s](const Shape& shape) { return &shape == s; }),
+            m_shapes.end());
     }
 
     const std::vector<Shape>& Diagram::shapes() const noexcept

@@ -1,3 +1,8 @@
+module;
+
+#define NOMINMAX
+#include <Windows.h>
+
 module ui.win32.selecttool;
 
 import <algorithm>;
@@ -114,6 +119,14 @@ namespace ui::win32
             for (auto& s : diagram.shapes())
                 selected_shapes.push_back(&s);
             state = SelectState::Selected;
+        }
+
+        if (e.key == VK_DELETE || e.key == VK_BACK)
+        {
+            for (auto* s : selected_shapes)
+                diagram.remove_shape(s);
+            selected_shapes.clear();
+            state = SelectState::Idle;
         }
 
         if (e.key == 27) // Escape
