@@ -20,7 +20,8 @@ namespace ui::win32
 	{
 		None,
 		Rectangle,
-		Ellipse
+		Ellipse,
+		Connector
 	};
 
 	// One entry in the stencil panel

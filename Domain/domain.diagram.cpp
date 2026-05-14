@@ -12,10 +12,49 @@ namespace domain
 
     void Diagram::remove_shape(const Shape* s)
     {
+        std::size_t idx = index_of(s);
+
         m_shapes.erase(
             std::remove_if(m_shapes.begin(), m_shapes.end(),
                 [s](const Shape& shape) { return &shape == s; }),
             m_shapes.end());
+
+        // Remove connectors that referenced the deleted shape, and
+        // fix up indices that shifted due to the erasure.
+        if (idx != npos)
+        {
+            m_connectors.erase(
+                std::remove_if(m_connectors.begin(), m_connectors.end(),
+                    [idx](const Connector& c)
+                    {
+                        return c.source_index == idx || c.target_index == idx;
+                    }),
+                m_connectors.end());
+
+            for (auto& c : m_connectors)
+            {
+                if (c.source_index > idx) --c.source_index;
+                if (c.target_index > idx) --c.target_index;
+            }
+        }
+    }
+
+    std::size_t Diagram::index_of(const Shape* s) const noexcept
+    {
+        for (std::size_t i = 0; i < m_shapes.size(); ++i)
+            if (&m_shapes[i] == s) return i;
+        return npos;
+    }
+
+    void Diagram::add_connector(std::size_t src, std::size_t tgt)
+    {
+        if (src < m_shapes.size() && tgt < m_shapes.size() && src != tgt)
+            m_connectors.push_back({ src, tgt });
+    }
+
+    const std::vector<Connector>& Diagram::connectors() const noexcept
+    {
+        return m_connectors;
     }
 
     void Diagram::commit()
@@ -23,23 +62,25 @@ namespace domain
         if (static_cast<int>(m_undo_stack.size()) >= MAX_UNDO)
             m_undo_stack.erase(m_undo_stack.begin());
 
-        m_undo_stack.push_back(m_shapes);
+        m_undo_stack.push_back({ m_shapes, m_connectors });
         m_redo_stack.clear();
     }
 
     void Diagram::undo()
     {
         if (m_undo_stack.empty()) return;
-        m_redo_stack.push_back(m_shapes);
-        m_shapes = m_undo_stack.back();
+        m_redo_stack.push_back({ m_shapes, m_connectors });
+        m_shapes     = m_undo_stack.back().shapes;
+        m_connectors = m_undo_stack.back().connectors;
         m_undo_stack.pop_back();
     }
 
     void Diagram::redo()
     {
         if (m_redo_stack.empty()) return;
-        m_undo_stack.push_back(m_shapes);
-        m_shapes = m_redo_stack.back();
+        m_undo_stack.push_back({ m_shapes, m_connectors });
+        m_shapes     = m_redo_stack.back().shapes;
+        m_connectors = m_redo_stack.back().connectors;
         m_redo_stack.pop_back();
     }
 

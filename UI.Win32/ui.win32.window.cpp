@@ -12,6 +12,7 @@ import ui.win32.toolmanager;
 import ui.win32.selecttool;
 import ui.win32.addrectangletool;
 import ui.win32.addellipsetool;
+import ui.win32.addconnectortool;
 import ui.win32.stencil;
 import ui.win32.tool;
 
@@ -25,9 +26,10 @@ namespace
     HWND g_hwnd{};
     ui::win32::ToolManager           g_tool_manager{};
     std::unique_ptr<ui::win32::SelectTool>        g_select_tool;
-    std::unique_ptr<ui::win32::AddRectangleTool>  g_add_rect_tool;
-    std::unique_ptr<ui::win32::AddEllipseTool>    g_add_ellipse_tool;
-    ui::win32::StencilWindow                      g_stencil_window;
+    std::unique_ptr<ui::win32::AddRectangleTool>    g_add_rect_tool;
+    std::unique_ptr<ui::win32::AddEllipseTool>      g_add_ellipse_tool;
+    std::unique_ptr<ui::win32::AddConnectorTool>    g_add_connector_tool;
+    ui::win32::StencilWindow                        g_stencil_window;
 
     // ----------------------------------------------------------------
     // Activates the add-tool that matches the chosen stencil tile and
@@ -49,6 +51,12 @@ namespace
             g_add_ellipse_tool->reset_done();
             g_tool_manager.set_active_tool(g_add_ellipse_tool.get());
             g_add_ellipse_tool->on_activate();
+        }
+        else if (kind == ui::win32::StencilItemKind::Connector)
+        {
+            g_add_connector_tool->reset_done();
+            g_tool_manager.set_active_tool(g_add_connector_tool.get());
+            g_add_connector_tool->on_activate();
         }
     }
 
@@ -92,6 +100,21 @@ namespace
             g_d2d.preview_active = false;
         }
 
+        // Connector preview
+        if (g_add_connector_tool && g_tool_manager.active_tool() == g_add_connector_tool.get()
+            && g_add_connector_tool->has_preview())
+        {
+            g_d2d.connector_preview_active = true;
+            g_d2d.connector_preview_x0     = g_add_connector_tool->preview_x0();
+            g_d2d.connector_preview_y0     = g_add_connector_tool->preview_y0();
+            g_d2d.connector_preview_x1     = g_add_connector_tool->preview_x1();
+            g_d2d.connector_preview_y1     = g_add_connector_tool->preview_y1();
+        }
+        else
+        {
+            g_d2d.connector_preview_active = false;
+        }
+
         // Status bar
         const auto* active    = g_tool_manager.active_tool();
         g_d2d.status_tool     = active ? active->display_name() : L"—";
@@ -100,6 +123,7 @@ namespace
         {
         case ui::win32::StencilItemKind::Rectangle: g_d2d.status_stencil = L"Rectangle"; break;
         case ui::win32::StencilItemKind::Ellipse:   g_d2d.status_stencil = L"Ellipse";   break;
+        case ui::win32::StencilItemKind::Connector: g_d2d.status_stencil = L"Connector"; break;
         default:                                    g_d2d.status_stencil = L"";           break;
         }
 
@@ -145,6 +169,16 @@ namespace
         e.ctrl  = (wParam & MK_CONTROL) != 0;
         SetCapture(hwnd);
         g_tool_manager.dispatch_pointer_down(e);
+
+        // Connector tool commits on the second pointer_down — check here
+        auto* cur = g_tool_manager.active_tool();
+        if (cur == g_add_connector_tool.get() && g_add_connector_tool->is_done())
+        {
+            cur->on_deactivate();
+            g_stencil_window.set_active(ui::win32::StencilItemKind::None);
+            g_tool_manager.set_active_tool(g_select_tool.get());
+            g_select_tool->on_activate();
+        }
     }
 
     void on_mouse_move(WPARAM wParam, LPARAM lParam)
@@ -183,8 +217,9 @@ namespace
         // If an add tool just finished, revert to SelectTool
         auto* cur = g_tool_manager.active_tool();
         const bool done =
-            (cur == g_add_rect_tool.get()    && g_add_rect_tool->is_done()) ||
-            (cur == g_add_ellipse_tool.get() && g_add_ellipse_tool->is_done());
+            (cur == g_add_rect_tool.get()       && g_add_rect_tool->is_done()) ||
+            (cur == g_add_ellipse_tool.get()    && g_add_ellipse_tool->is_done()) ||
+            (cur == g_add_connector_tool.get()  && g_add_connector_tool->is_done());
 
         if (done)
         {
@@ -257,9 +292,10 @@ namespace ui::win32
     {
         init_diagram();
 
-        g_select_tool      = std::make_unique<ui::win32::SelectTool>(g_diagram);
-        g_add_rect_tool    = std::make_unique<ui::win32::AddRectangleTool>(g_diagram);
-        g_add_ellipse_tool = std::make_unique<ui::win32::AddEllipseTool>(g_diagram);
+        g_select_tool         = std::make_unique<ui::win32::SelectTool>(g_diagram);
+        g_add_rect_tool       = std::make_unique<ui::win32::AddRectangleTool>(g_diagram);
+        g_add_ellipse_tool    = std::make_unique<ui::win32::AddEllipseTool>(g_diagram);
+        g_add_connector_tool  = std::make_unique<ui::win32::AddConnectorTool>(g_diagram);
         g_tool_manager.set_active_tool(g_select_tool.get());
         g_select_tool->on_activate();
 

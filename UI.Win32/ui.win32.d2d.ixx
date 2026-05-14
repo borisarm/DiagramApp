@@ -50,6 +50,11 @@ export namespace ui::win32::d2d
         StencilItemKind preview_kind  = StencilItemKind::None;
         float preview_x0 = 0, preview_y0 = 0;
         float preview_x1 = 0, preview_y1 = 0;
+
+        // Connector preview overlay (AddConnectorTool in SourceLocked state)
+        bool  connector_preview_active = false;
+        float connector_preview_x0 = 0, connector_preview_y0 = 0;
+        float connector_preview_x1 = 0, connector_preview_y1 = 0;
     };
 
     D2DContext create_d2d_context(HWND hwnd, const domain::Diagram* diagram);

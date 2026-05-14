@@ -157,6 +157,8 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ui.win32.addconnectortool.cpp" />
+    <ClCompile Include="ui.win32.addconnectortool.ixx" />
     <ClCompile Include="ui.win32.addellipsetool.cpp" />
     <ClCompile Include="ui.win32.addellipsetool.ixx" />
     <ClCompile Include="ui.win32.addrectangletool.cpp" />

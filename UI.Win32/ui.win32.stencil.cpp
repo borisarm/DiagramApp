@@ -22,6 +22,7 @@ namespace ui::win32
 		{
 			{ StencilItemKind::Rectangle, L"Rectangle" },
 			{ StencilItemKind::Ellipse,   L"Ellipse"   },
+			{ StencilItemKind::Connector, L"Connector"  },
 		};
 	}
 
@@ -231,6 +232,17 @@ namespace ui::win32
 					D2D1::Point2F((ico_x0 + ico_x1) * 0.5f, (ico_y0 + ico_y1) * 0.5f),
 					(ico_x1 - ico_x0) * 0.5f, (ico_y1 - ico_y0) * 0.5f);
 				m_rt->DrawEllipse(ico, ico_brush.Get(), 1.5f);
+			}
+			else if (item.kind == StencilItemKind::Connector)
+			{
+				// Draw a diagonal line with a small arrowhead
+				m_rt->DrawLine(D2D1::Point2F(ico_x0, ico_y1),
+							   D2D1::Point2F(ico_x1, ico_y0),
+							   ico_brush.Get(), 1.5f);
+				// Arrowhead at (ico_x1, ico_y0)
+				float ax = ico_x1, ay = ico_y0;
+				m_rt->DrawLine(D2D1::Point2F(ax, ay), D2D1::Point2F(ax - 8.f, ay + 3.f), ico_brush.Get(), 1.5f);
+				m_rt->DrawLine(D2D1::Point2F(ax, ay), D2D1::Point2F(ax - 3.f, ay + 8.f), ico_brush.Get(), 1.5f);
 			}
 
 			// Label

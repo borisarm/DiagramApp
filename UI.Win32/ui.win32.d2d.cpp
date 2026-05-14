@@ -3,6 +3,7 @@ module;
 #include <Windows.h>
 #include <d2d1.h>
 #include <dwrite.h>
+#include <cmath>
 
 module ui.win32.d2d;
 
@@ -204,6 +205,72 @@ namespace ui::win32::d2d
             ctx.renderTarget->FillRectangle(lr, lasso_fill.Get());
             ctx.renderTarget->DrawRectangle(lr, lasso_brush.Get(), 1.f,
                 ctx.lasso_stroke_style.Get());
+        }
+
+        // ── 3b. Committed connectors ─────────────────────────────────
+        {
+            ComPtr<ID2D1SolidColorBrush> conn_brush;
+            ctx.renderTarget->CreateSolidColorBrush(
+                D2D1::ColorF(0.15f, 0.15f, 0.15f, 1.f), conn_brush.GetAddressOf());
+
+            const auto& shapes     = ctx.diagram->shapes();
+            const auto& connectors = ctx.diagram->connectors();
+
+            auto shape_centre = [&](std::size_t idx, float& cx, float& cy)
+            {
+                std::visit([&](const auto& s)
+                {
+                    cx = s.x + s.width  * 0.5f;
+                    cy = s.y + s.height * 0.5f;
+                }, shapes[idx]);
+            };
+
+            for (const auto& c : connectors)
+            {
+                if (c.source_index >= shapes.size() || c.target_index >= shapes.size())
+                    continue;
+
+                float x0, y0, x1, y1;
+                shape_centre(c.source_index, x0, y0);
+                shape_centre(c.target_index, x1, y1);
+
+                ctx.renderTarget->DrawLine(
+                    D2D1::Point2F(x0, y0), D2D1::Point2F(x1, y1),
+                    conn_brush.Get(), 1.5f);
+
+                // Arrowhead at target end
+                float dx = x1 - x0, dy = y1 - y0;
+                float len = std::sqrt(dx * dx + dy * dy);
+                if (len > 0.01f)
+                {
+                    float ux = dx / len, uy = dy / len;
+                    float px = -uy, py = ux;           // perpendicular
+                    const float hs = 8.f;              // arrowhead size
+                    float ax = x1 - ux * hs, ay = y1 - uy * hs;
+                    ctx.renderTarget->DrawLine(
+                        D2D1::Point2F(x1, y1),
+                        D2D1::Point2F(ax + px * hs * 0.4f, ay + py * hs * 0.4f),
+                        conn_brush.Get(), 1.5f);
+                    ctx.renderTarget->DrawLine(
+                        D2D1::Point2F(x1, y1),
+                        D2D1::Point2F(ax - px * hs * 0.4f, ay - py * hs * 0.4f),
+                        conn_brush.Get(), 1.5f);
+                }
+            }
+        }
+
+        // ── 3c. Connector preview (AddConnectorTool SourceLocked) ────
+        if (ctx.connector_preview_active)
+        {
+            ComPtr<ID2D1SolidColorBrush> cprev_brush;
+            ctx.renderTarget->CreateSolidColorBrush(
+                D2D1::ColorF(1.f, 0.4f, 0.f, 0.85f), cprev_brush.GetAddressOf());
+
+            ctx.renderTarget->DrawLine(
+                D2D1::Point2F(ctx.connector_preview_x0, ctx.connector_preview_y0),
+                D2D1::Point2F(ctx.connector_preview_x1, ctx.connector_preview_y1),
+                cprev_brush.Get(), 1.5f,
+                ctx.preview_stroke_style.Get());
         }
 
         ctx.renderTarget->PopAxisAlignedClip();
