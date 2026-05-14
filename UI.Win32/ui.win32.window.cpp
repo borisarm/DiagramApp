@@ -10,6 +10,7 @@ import <memory>;
 import ui.win32.d2d;
 import ui.win32.toolmanager;
 import ui.win32.selecttool;
+import ui.win32.tool;
 
 using ui::win32::d2d::D2DContext;
 
@@ -52,6 +53,13 @@ namespace
             g_d2d.lasso_x1        = g_select_tool->get_lasso_x1();
             g_d2d.lasso_y1        = g_select_tool->get_lasso_y1();
 
+            // Sync status bar fields
+            const auto* active = g_tool_manager.active_tool();
+            g_d2d.status_tool           = active ? active->display_name() : L"—";
+            g_d2d.status_stencil        = L"";  // no stencil yet
+            g_d2d.status_shape_count    = static_cast<int>(ui::win32::g_diagram.shapes().size());
+            g_d2d.status_selected_count = static_cast<int>(g_select_tool->selected().size());
+
             ui::win32::d2d::render(g_d2d);
             EndPaint(hwnd, &ps);
             return 0;
@@ -63,9 +71,12 @@ namespace
 
         case WM_LBUTTONDOWN:
         {
+            const float fy = static_cast<float>(HIWORD(lParam));
+            if (fy >= g_d2d.canvas_rect.bottom) return 0; // inside status bar — ignore
+
             ui::win32::PointerEvent e{};
             e.x     = static_cast<float>(LOWORD(lParam));
-            e.y     = static_cast<float>(HIWORD(lParam));
+            e.y     = fy;
             e.left  = true;
             e.shift = (wParam & MK_SHIFT)   != 0;
             e.ctrl  = (wParam & MK_CONTROL) != 0;
@@ -76,9 +87,12 @@ namespace
 
         case WM_MOUSEMOVE:
         {
+            const float fy = static_cast<float>(HIWORD(lParam));
+            if (fy >= g_d2d.canvas_rect.bottom) return 0;
+
             ui::win32::PointerEvent e{};
             e.x     = static_cast<float>(LOWORD(lParam));
-            e.y     = static_cast<float>(HIWORD(lParam));
+            e.y     = fy;
             e.left  = (wParam & MK_LBUTTON)  != 0;
             e.right = (wParam & MK_RBUTTON)  != 0;
             e.shift = (wParam & MK_SHIFT)    != 0;
@@ -89,9 +103,16 @@ namespace
 
         case WM_LBUTTONUP:
         {
+            const float fy = static_cast<float>(HIWORD(lParam));
+            if (fy >= g_d2d.canvas_rect.bottom)
+            {
+                ReleaseCapture();
+                return 0;
+            }
+
             ui::win32::PointerEvent e{};
             e.x     = static_cast<float>(LOWORD(lParam));
-            e.y     = static_cast<float>(HIWORD(lParam));
+            e.y     = fy;
             e.shift = (wParam & MK_SHIFT)   != 0;
             e.ctrl  = (wParam & MK_CONTROL) != 0;
             ReleaseCapture();

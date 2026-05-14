@@ -68,5 +68,8 @@ namespace ui::win32
 
         // What kind of tool this is
         virtual ToolKind kind() const noexcept = 0;
+
+        // Short name shown in the status bar
+        virtual const wchar_t* display_name() const noexcept = 0;
     };
 }

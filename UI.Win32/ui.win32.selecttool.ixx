@@ -40,6 +40,7 @@ namespace ui::win32
         void render_overlays() override;
 
         ToolKind kind() const noexcept override { return ToolKind::Select; }
+        const wchar_t* display_name() const noexcept override { return L"Select"; }
 
         const std::vector<const domain::Shape*>& selected() const noexcept { return selected_shapes; }
 
