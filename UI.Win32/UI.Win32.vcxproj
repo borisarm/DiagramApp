@@ -157,11 +157,17 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ui.win32.addellipsetool.cpp" />
+    <ClCompile Include="ui.win32.addellipsetool.ixx" />
+    <ClCompile Include="ui.win32.addrectangletool.cpp" />
+    <ClCompile Include="ui.win32.addrectangletool.ixx" />
     <ClCompile Include="ui.win32.d2d.cpp" />
     <ClCompile Include="ui.win32.d2d.ixx" />
     <ClCompile Include="ui.win32.main.cpp" />
     <ClCompile Include="ui.win32.selecttool.cpp" />
     <ClCompile Include="ui.win32.selecttool.ixx" />
+    <ClCompile Include="ui.win32.stencil.cpp" />
+    <ClCompile Include="ui.win32.stencil.ixx" />
     <ClCompile Include="ui.win32.tool.ixx" />
     <ClCompile Include="ui.win32.toolmanager.cpp" />
     <ClCompile Include="ui.win32.toolmanager.ixx" />
