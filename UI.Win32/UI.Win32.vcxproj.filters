@@ -46,22 +46,16 @@
     <ClCompile Include="ui.win32.stencil.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ui.win32.addrectangletool.ixx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ui.win32.addrectangletool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ui.win32.addellipsetool.ixx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ui.win32.addellipsetool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ui.win32.addconnectortool.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ui.win32.addconnectortool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.addshapetool.ixx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.addshapetool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

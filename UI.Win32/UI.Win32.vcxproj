@@ -159,10 +159,8 @@
   <ItemGroup>
     <ClCompile Include="ui.win32.addconnectortool.cpp" />
     <ClCompile Include="ui.win32.addconnectortool.ixx" />
-    <ClCompile Include="ui.win32.addellipsetool.cpp" />
-    <ClCompile Include="ui.win32.addellipsetool.ixx" />
-    <ClCompile Include="ui.win32.addrectangletool.cpp" />
-    <ClCompile Include="ui.win32.addrectangletool.ixx" />
+    <ClCompile Include="ui.win32.addshapetool.cpp" />
+    <ClCompile Include="ui.win32.addshapetool.ixx" />
     <ClCompile Include="ui.win32.d2d.cpp" />
     <ClCompile Include="ui.win32.d2d.ixx" />
     <ClCompile Include="ui.win32.main.cpp" />

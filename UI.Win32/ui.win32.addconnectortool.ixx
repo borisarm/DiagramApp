@@ -1,10 +1,13 @@
 module;
 
+#include <Windows.h>
+#include <wrl/client.h>
+#include "../Domain/shape_interfaces.h"
+
 export module ui.win32.addconnectortool;
 
 import ui.win32.tool;
 import domain.diagram;
-import domain.shape;
 
 namespace ui::win32
 {
@@ -27,7 +30,6 @@ namespace ui::win32
 		ToolKind        kind()         const noexcept override { return ToolKind::Connector; }
 		const wchar_t*  display_name() const noexcept override { return L"Add Connector"; }
 
-		// Preview line — read by window.cpp to feed D2DContext
 		bool  has_preview()    const noexcept { return m_has_preview; }
 		float preview_x0()     const noexcept { return m_src_x; }
 		float preview_y0()     const noexcept { return m_src_y; }
@@ -46,10 +48,10 @@ namespace ui::win32
 		bool  m_done        = false;
 		bool  m_has_preview = false;
 
-		const domain::Shape* m_source = nullptr;
-		float m_src_x = 0, m_src_y = 0;  // centre of source shape
-		float m_cur_x = 0, m_cur_y = 0;  // current cursor position
+		IShape* m_source = nullptr;  // non-owning; shape lives in Diagram
+		float m_src_x = 0, m_src_y = 0;
+		float m_cur_x = 0, m_cur_y = 0;
 
-		static void shape_centre(const domain::Shape& s, float& cx, float& cy);
+		static void shape_centre(IShape* s, float& cx, float& cy);
 	};
 }

@@ -1,17 +1,17 @@
 module;
 
+#define NOMINMAX
 #include <Windows.h>
 #include <d2d1.h>
 #include <dwrite.h>
 #include <cmath>
+#include "../Domain/shape_interfaces.h"
 
 module ui.win32.d2d;
 
 import <stdexcept>;
-import <variant>;
 import <string>;
 import domain.diagram;
-import ui.win32.stencil;
 
 using Microsoft::WRL::ComPtr;
 
@@ -140,53 +140,52 @@ namespace ui::win32::d2d
             D2D1_ANTIALIAS_MODE_ALIASED);
 
         // ── 1. Draw all shapes ───────────────────────────────────────
-        for (auto& shape : ctx.diagram->shapes())
+        for (auto& sp : ctx.diagram->shapes())
         {
-            std::visit([&](auto&& s)
-            {
-                using T = std::decay_t<decltype(s)>;
+            IShape* s = sp.Get();
+            ShapeGeometry g{};
+            s->GetGeometry(&g);
+            float x = g.x, y = g.y, w = g.width, h = g.height;
 
-                if constexpr (std::is_same_v<T, domain::Rectangle>)
-                {
-                    D2D1_RECT_F r = D2D1::RectF(s.x, s.y, s.x + s.width, s.y + s.height);
-                    ctx.renderTarget->FillRectangle(r, shape_brush.Get());
-                    ctx.renderTarget->DrawRectangle(r, shape_brush.Get(), 2.f);
-                }
-                else if constexpr (std::is_same_v<T, domain::Ellipse>)
-                {
-                    D2D1_ELLIPSE e = D2D1::Ellipse(
-                        D2D1::Point2F(s.x + s.width / 2.f, s.y + s.height / 2.f),
-                        s.width / 2.f, s.height / 2.f);
-                    ctx.renderTarget->FillEllipse(e, shape_brush.Get());
-                    ctx.renderTarget->DrawEllipse(e, shape_brush.Get(), 2.f);
-                }
-            }, shape);
+            if (g.kind == ShapeGeometryKind::Rect)
+            {
+                D2D1_RECT_F r = D2D1::RectF(x, y, x + w, y + h);
+                ctx.renderTarget->FillRectangle(r, shape_brush.Get());
+                ctx.renderTarget->DrawRectangle(r, shape_brush.Get(), 2.f);
+            }
+            else if (g.kind == ShapeGeometryKind::Ellipse)
+            {
+                D2D1_ELLIPSE e = D2D1::Ellipse(
+                    D2D1::Point2F(x + w * 0.5f, y + h * 0.5f),
+                    w * 0.5f, h * 0.5f);
+                ctx.renderTarget->FillEllipse(e, shape_brush.Get());
+                ctx.renderTarget->DrawEllipse(e, shape_brush.Get(), 2.f);
+            }
         }
 
         // ── 2. Selection highlights ──────────────────────────────────
         if (ctx.selected_shapes)
         {
-            for (auto* sp : *ctx.selected_shapes)
+            for (IShape* sp : *ctx.selected_shapes)
             {
-                std::visit([&](auto&& s)
-                {
-                    using T = std::decay_t<decltype(s)>;
+                ShapeGeometry g{};
+                sp->GetGeometry(&g);
+                float x = g.x, y = g.y, w = g.width, h = g.height;
 
-                    if constexpr (std::is_same_v<T, domain::Rectangle>)
-                    {
-                        D2D1_RECT_F r = D2D1::RectF(s.x, s.y, s.x + s.width, s.y + s.height);
-                        ctx.renderTarget->FillRectangle(r, sel_fill_brush.Get());
-                        ctx.renderTarget->DrawRectangle(r, sel_stroke_brush.Get(), 2.f);
-                    }
-                    else if constexpr (std::is_same_v<T, domain::Ellipse>)
-                    {
-                        D2D1_ELLIPSE e = D2D1::Ellipse(
-                            D2D1::Point2F(s.x + s.width / 2.f, s.y + s.height / 2.f),
-                            s.width / 2.f, s.height / 2.f);
-                        ctx.renderTarget->FillEllipse(e, sel_fill_brush.Get());
-                        ctx.renderTarget->DrawEllipse(e, sel_stroke_brush.Get(), 2.f);
-                    }
-                }, *sp);
+                if (g.kind == ShapeGeometryKind::Rect)
+                {
+                    D2D1_RECT_F r = D2D1::RectF(x, y, x + w, y + h);
+                    ctx.renderTarget->FillRectangle(r, sel_fill_brush.Get());
+                    ctx.renderTarget->DrawRectangle(r, sel_stroke_brush.Get(), 2.f);
+                }
+                else if (g.kind == ShapeGeometryKind::Ellipse)
+                {
+                    D2D1_ELLIPSE e = D2D1::Ellipse(
+                        D2D1::Point2F(x + w * 0.5f, y + h * 0.5f),
+                        w * 0.5f, h * 0.5f);
+                    ctx.renderTarget->FillEllipse(e, sel_fill_brush.Get());
+                    ctx.renderTarget->DrawEllipse(e, sel_stroke_brush.Get(), 2.f);
+                }
             }
         }
 
@@ -218,11 +217,10 @@ namespace ui::win32::d2d
 
             auto shape_centre = [&](std::size_t idx, float& cx, float& cy)
             {
-                std::visit([&](const auto& s)
-                {
-                    cx = s.x + s.width  * 0.5f;
-                    cy = s.y + s.height * 0.5f;
-                }, shapes[idx]);
+                float bx, by, bw, bh;
+                shapes[idx]->GetBounds(&bx, &by, &bw, &bh);
+                cx = bx + bw * 0.5f;
+                cy = by + bh * 0.5f;
             };
 
             for (const auto& c : connectors)
@@ -288,14 +286,14 @@ namespace ui::win32::d2d
             const float px0 = ctx.preview_x0, py0 = ctx.preview_y0;
             const float px1 = ctx.preview_x1, py1 = ctx.preview_y1;
 
-            if (ctx.preview_kind == StencilItemKind::Rectangle)
+            if (ctx.preview_kind == ShapeGeometryKind::Rect)
             {
                 D2D1_RECT_F pr = D2D1::RectF(px0, py0, px1, py1);
                 ctx.renderTarget->FillRectangle(pr, prev_fill.Get());
                 ctx.renderTarget->DrawRectangle(pr, prev_stroke.Get(), 1.5f,
                     ctx.preview_stroke_style.Get());
             }
-            else if (ctx.preview_kind == StencilItemKind::Ellipse)
+            else if (ctx.preview_kind == ShapeGeometryKind::Ellipse)
             {
                 D2D1_ELLIPSE pe = D2D1::Ellipse(
                     D2D1::Point2F((px0 + px1) * 0.5f, (py0 + py1) * 0.5f),

@@ -1,6 +1,6 @@
 module;
 
-
+#include "../Domain/shape_interfaces.h"
 
 export module ui.win32.d2d;
 
@@ -10,8 +10,6 @@ import <wrl/client.h>;
 import <vector>;
 import <string>;
 import domain.diagram;
-import domain.shape;
-import ui.win32.stencil;  // for StencilItemKind (preview overlay)
 
 export namespace ui::win32::d2d
 {
@@ -28,8 +26,8 @@ export namespace ui::win32::d2d
         Microsoft::WRL::ComPtr<IDWriteFactory>        dwrite_factory;
         Microsoft::WRL::ComPtr<IDWriteTextFormat>     status_text_format;
 
-        const domain::Diagram*                   diagram         = nullptr;
-        const std::vector<const domain::Shape*>* selected_shapes = nullptr;
+        const domain::Diagram*           diagram         = nullptr;
+        const std::vector<IShape*>*        selected_shapes = nullptr;
 
         // Lasso overlay
         bool  lasso_active = false;
@@ -46,8 +44,8 @@ export namespace ui::win32::d2d
         int          status_selected_count = 0;
 
         // Add-tool preview overlay
-        bool           preview_active = false;
-        StencilItemKind preview_kind  = StencilItemKind::None;
+        bool              preview_active = false;
+        ShapeGeometryKind preview_kind   = ShapeGeometryKind::Rect;
         float preview_x0 = 0, preview_y0 = 0;
         float preview_x1 = 0, preview_y1 = 0;
 

@@ -157,8 +157,13 @@
   <ItemGroup>
     <ClCompile Include="domain.diagram.cpp" />
     <ClCompile Include="domain.diagram.ixx" />
-    <ClCompile Include="domain.shape.cpp" />
-    <ClCompile Include="domain.shape.ixx" />
+    <ClCompile Include="domain.shape_impls.cpp" />
+    <ClCompile Include="domain.shape_registry.cpp" />
+    <ClCompile Include="domain.shape_registry.ixx" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="domain.shape_impls.h" />
+    <ClInclude Include="shape_interfaces.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

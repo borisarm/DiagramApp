@@ -1,11 +1,10 @@
 module;
 
 #include <Windows.h>
+#include <wrl/client.h>
+#include "../Domain/shape_interfaces.h"
 
 module ui.win32.addconnectortool;
-
-import domain.shape;
-import <variant>;
 
 namespace ui::win32
 {
@@ -28,21 +27,14 @@ namespace ui::win32
 		m_state       = State::Idle;
 	}
 
-	// -----------------------------------------------------------------------
-	//  Helper: geometric centre of a shape
-	// -----------------------------------------------------------------------
-	void AddConnectorTool::shape_centre(const domain::Shape& s, float& cx, float& cy)
+	void AddConnectorTool::shape_centre(IShape* s, float& cx, float& cy)
 	{
-		std::visit([&](const auto& r)
-		{
-			cx = r.x + r.width  * 0.5f;
-			cy = r.y + r.height * 0.5f;
-		}, s);
+		float x = 0, y = 0, w = 0, h = 0;
+		s->GetBounds(&x, &y, &w, &h);
+		cx = x + w * 0.5f;
+		cy = y + h * 0.5f;
 	}
 
-	// -----------------------------------------------------------------------
-	//  Input handlers
-	// -----------------------------------------------------------------------
 	void AddConnectorTool::on_pointer_down(const PointerEvent& e)
 	{
 		if (!e.left) return;
@@ -54,28 +46,18 @@ namespace ui::win32
 			if (candidates.empty()) return;
 
 			m_source = candidates.back();
-			shape_centre(*m_source, m_src_x, m_src_y);
+			shape_centre(m_source, m_src_x, m_src_y);
 			m_cur_x = e.x;
 			m_cur_y = e.y;
 			m_has_preview = true;
 			m_state = State::SourceLocked;
 		}
-		else // SourceLocked — user clicks a target
+		else
 		{
-			// Cancel if user clicks on empty space
-			if (candidates.empty())
-			{
-				on_deactivate();
-				return;
-			}
+			if (candidates.empty()) { on_deactivate(); return; }
 
-			const domain::Shape* target = candidates.back();
-			if (target == m_source)
-			{
-				// same shape — cancel
-				on_deactivate();
-				return;
-			}
+			IShape* target = candidates.back();
+			if (target == m_source) { on_deactivate(); return; }
 
 			std::size_t src_idx = m_diagram.index_of(m_source);
 			std::size_t tgt_idx = m_diagram.index_of(target);

@@ -4,10 +4,12 @@ module;
 #include <d2d1.h>
 #include <dwrite.h>
 #include <wrl/client.h>
+#include "../Domain/shape_interfaces.h"
 
 module ui.win32.stencil;
 
 import <stdexcept>;
+import <cmath>;
 
 using Microsoft::WRL::ComPtr;
 
@@ -16,51 +18,66 @@ namespace ui::win32
 	// ================================================================
 	// Stencil (model)
 	// ================================================================
-	Stencil::Stencil()
+
+	void Stencil::populate(const std::vector<ComPtr<IShapeClass>>& classes)
 	{
-		m_items =
+		m_tiles.clear();
+		m_active = npos;
+		for (auto& cls : classes)
 		{
-			{ StencilItemKind::Rectangle, L"Rectangle" },
-			{ StencilItemKind::Ellipse,   L"Ellipse"   },
-			{ StencilItemKind::Connector, L"Connector"  },
-		};
+			StencilTile tile;
+			tile.shape_class = cls;
+			BSTR name = nullptr;
+			if (SUCCEEDED(cls->GetName(&name)) && name)
+			{
+				tile.name = name;
+				SysFreeString(name);
+			}
+			m_tiles.push_back(std::move(tile));
+		}
+	}
+
+	void Stencil::add_connector_tile()
+	{
+		StencilTile tile;
+		tile.shape_class = nullptr;
+		tile.name = L"Connector";
+		m_tiles.push_back(std::move(tile));
 	}
 
 	void Stencil::layout(float panel_height)
 	{
-		float y = STENCIL_PADDING + 20;
-		for (auto& item : m_items)
+		float y = STENCIL_PADDING + 20.f;
+		for (auto& tile : m_tiles)
 		{
-			item.x0 = STENCIL_PADDING;
-			item.y0 = y;
-			item.x1 = STENCIL_WIDTH - STENCIL_PADDING;
-			item.y1 = y + STENCIL_TILE_H - STENCIL_PADDING;
+			tile.x0 = STENCIL_PADDING;
+			tile.y0 = y;
+			tile.x1 = STENCIL_WIDTH - STENCIL_PADDING;
+			tile.y1 = y + STENCIL_TILE_H - STENCIL_PADDING;
 			y += STENCIL_TILE_H;
-
 			if (y > panel_height) break;
 		}
 	}
 
-	StencilItemKind Stencil::hit_test(float px, float py) const
+	std::size_t Stencil::hit_test(float px, float py) const
 	{
-		for (auto& item : m_items)
+		for (std::size_t i = 0; i < m_tiles.size(); ++i)
 		{
-			if (px >= item.x0 && px <= item.x1 &&
-				py >= item.y0 && py <= item.y1)
-				return item.kind;
+			const auto& t = m_tiles[i];
+			if (px >= t.x0 && px <= t.x1 && py >= t.y0 && py <= t.y1)
+				return i;
 		}
-		return StencilItemKind::None;
+		return npos;
 	}
 
 	// ================================================================
 	// StencilWindow
 	// ================================================================
 
-	// Static WndProc — routes to the instance via GWLP_USERDATA
-	LRESULT CALLBACK StencilWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK StencilWindow::WndProc(HWND hwnd, UINT msg,
+											WPARAM wParam, LPARAM lParam)
 	{
 		StencilWindow* self = nullptr;
-
 		if (msg == WM_NCCREATE)
 		{
 			auto* cs = reinterpret_cast<CREATESTRUCT*>(lParam);
@@ -69,12 +86,10 @@ namespace ui::win32
 		}
 		else
 		{
-			self = reinterpret_cast<StencilWindow*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+			self = reinterpret_cast<StencilWindow*>(
+				GetWindowLongPtr(hwnd, GWLP_USERDATA));
 		}
-
-		if (self)
-			return self->handle_message(hwnd, msg, wParam, lParam);
-
+		if (self) return self->handle_message(hwnd, msg, wParam, lParam);
 		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 
@@ -82,29 +97,23 @@ namespace ui::win32
 	{
 		HINSTANCE hInst = GetModuleHandle(nullptr);
 
-		// Register once
 		WNDCLASS wc{};
 		wc.lpfnWndProc   = WndProc;
 		wc.hInstance     = hInst;
 		wc.lpszClassName = CLASS_NAME;
 		wc.hCursor       = LoadCursor(nullptr, IDC_ARROW);
 		wc.hbrBackground = nullptr;
-		RegisterClass(&wc); // ignored if already registered
+		RegisterClass(&wc);  // ignored if already registered
 
-		const int w = static_cast<int>(STENCIL_WIDTH + 2 * STENCIL_PADDING);
-		const int h = static_cast<int>(20 + static_cast<float>(m_stencil.items().size())
-											* STENCIL_TILE_H + STENCIL_PADDING);
+		const int w = static_cast<int>(STENCIL_WIDTH + 2.f * STENCIL_PADDING);
+		const int h = static_cast<int>(20.f
+			+ static_cast<float>(m_stencil.tiles().size()) * STENCIL_TILE_H
+			+ STENCIL_PADDING);
 
 		m_hwnd = CreateWindowEx(
-			WS_EX_TOOLWINDOW,
-			CLASS_NAME,
-			L"Shapes",
+			WS_EX_TOOLWINDOW, CLASS_NAME, L"Shapes",
 			WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
-			x, y, w, h,
-			owner,
-			nullptr,
-			hInst,
-			this);  // passed as lpCreateParams → caught in WM_NCCREATE
+			x, y, w, h, owner, nullptr, hInst, this);
 
 		if (!m_hwnd)
 			throw std::runtime_error("Failed to create stencil palette window");
@@ -121,18 +130,26 @@ namespace ui::win32
 
 	void StencilWindow::destroy()
 	{
-		if (m_hwnd)
-		{
-			DestroyWindow(m_hwnd);
-			m_hwnd = nullptr;
-		}
+		if (m_hwnd) { DestroyWindow(m_hwnd); m_hwnd = nullptr; }
 	}
 
-	void StencilWindow::set_active(StencilItemKind kind)
+	void StencilWindow::populate(const std::vector<ComPtr<IShapeClass>>& classes)
 	{
-		m_stencil.set_active(kind);
-		if (m_hwnd)
-			InvalidateRect(m_hwnd, nullptr, FALSE);
+		m_stencil.populate(classes);
+		m_stencil.add_connector_tile();
+		if (m_hwnd) InvalidateRect(m_hwnd, nullptr, FALSE);
+	}
+
+	void StencilWindow::set_active(std::size_t tile_index)
+	{
+		m_stencil.set_active(tile_index);
+		if (m_hwnd) InvalidateRect(m_hwnd, nullptr, FALSE);
+	}
+
+	void StencilWindow::clear_active()
+	{
+		m_stencil.clear_active();
+		if (m_hwnd) InvalidateRect(m_hwnd, nullptr, FALSE);
 	}
 
 	void StencilWindow::init_d2d()
@@ -161,8 +178,7 @@ namespace ui::win32
 		m_dwrite->CreateTextFormat(
 			L"Segoe UI", nullptr,
 			DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-			DWRITE_FONT_STRETCH_NORMAL,
-			11.f, L"en-us",
+			DWRITE_FONT_STRETCH_NORMAL, 11.f, L"en-us",
 			m_label_fmt.GetAddressOf());
 
 		if (m_label_fmt)
@@ -175,103 +191,120 @@ namespace ui::win32
 	void StencilWindow::paint()
 	{
 		if (!m_rt) return;
-
 		const D2D1_SIZE_F sz = m_rt->GetSize();
 
 		m_rt->BeginDraw();
 		m_rt->Clear(D2D1::ColorF(0.13f, 0.13f, 0.13f));
 
-		// "SHAPES" header
+		// Header
 		if (m_label_fmt)
 		{
-			ComPtr<ID2D1SolidColorBrush> hdr_brush;
-			m_rt->CreateSolidColorBrush(D2D1::ColorF(0.55f, 0.55f, 0.55f), hdr_brush.GetAddressOf());
-			D2D1_RECT_F hdr = D2D1::RectF(0.f, 4.f, sz.width, 18.f);
-			m_rt->DrawText(L"SHAPES", 6, m_label_fmt.Get(), hdr, hdr_brush.Get());
+			ComPtr<ID2D1SolidColorBrush> hdr;
+			m_rt->CreateSolidColorBrush(D2D1::ColorF(0.55f, 0.55f, 0.55f),
+										hdr.GetAddressOf());
+			m_rt->DrawText(L"SHAPES", 6, m_label_fmt.Get(),
+						   D2D1::RectF(0.f, 4.f, sz.width, 18.f), hdr.Get());
 		}
 
-		// Tiles
-		for (auto& item : m_stencil.items())
+		for (std::size_t i = 0; i < m_stencil.tiles().size(); ++i)
 		{
-			const bool selected = (m_stencil.active() == item.kind);
+			const auto& tile     = m_stencil.tiles()[i];
+			const bool  selected = (m_stencil.active_index() == i);
 
-			ComPtr<ID2D1SolidColorBrush> tile_bg;
+			// Tile background
+			ComPtr<ID2D1SolidColorBrush> bg;
 			m_rt->CreateSolidColorBrush(
 				selected ? D2D1::ColorF(0.20f, 0.45f, 0.80f)
 						 : D2D1::ColorF(0.20f, 0.20f, 0.20f),
-				tile_bg.GetAddressOf());
+				bg.GetAddressOf());
+			D2D1_RECT_F tr = D2D1::RectF(tile.x0, tile.y0, tile.x1, tile.y1);
+			m_rt->FillRectangle(tr, bg.Get());
 
-			D2D1_RECT_F tile = D2D1::RectF(item.x0, item.y0, item.x1, item.y1);
-			m_rt->FillRectangle(tile, tile_bg.Get());
-
-			ComPtr<ID2D1SolidColorBrush> tile_border;
+			ComPtr<ID2D1SolidColorBrush> border;
 			m_rt->CreateSolidColorBrush(
 				selected ? D2D1::ColorF(0.40f, 0.65f, 1.0f)
 						 : D2D1::ColorF(0.35f, 0.35f, 0.35f),
-				tile_border.GetAddressOf());
-			m_rt->DrawRectangle(tile, tile_border.Get(), 1.f);
+				border.GetAddressOf());
+			m_rt->DrawRectangle(tr, border.Get(), 1.f);
 
-			// Mini shape icon
-			const float ico_margin = 12.f;
-			const float ico_x0 = item.x0 + ico_margin;
-			const float ico_y0 = item.y0 + ico_margin;
-			const float ico_x1 = item.x1 - ico_margin;
-			const float ico_y1 = item.y1 - 20.f;
+			// Icon
+			const float im = 12.f;
+			const float ix0 = tile.x0 + im, iy0 = tile.y0 + im;
+			const float ix1 = tile.x1 - im, iy1 = tile.y1 - 20.f;
 
-			ComPtr<ID2D1SolidColorBrush> ico_brush;
-			m_rt->CreateSolidColorBrush(D2D1::ColorF(0.55f, 0.75f, 1.0f), ico_brush.GetAddressOf());
+			ComPtr<ID2D1SolidColorBrush> ico;
+			m_rt->CreateSolidColorBrush(D2D1::ColorF(0.55f, 0.75f, 1.0f),
+										ico.GetAddressOf());
 
-			if (item.kind == StencilItemKind::Rectangle)
+			if (tile.shape_class)
 			{
-				m_rt->DrawRectangle(D2D1::RectF(ico_x0, ico_y0, ico_x1, ico_y1),
-									ico_brush.Get(), 1.5f);
+				ShapeGeometry geom{};
+				tile.shape_class->GetStencilGeometry(&geom);
+
+				// Scale the canonical stencil geometry into the icon area
+				const float gw = geom.width  > 0 ? geom.width  : 1.f;
+				const float gh = geom.height > 0 ? geom.height : 1.f;
+				const float sx = (ix1 - ix0) / gw;
+				const float sy = (iy1 - iy0) / gh;
+				const float ox = ix0 - geom.x * sx;
+				const float oy = iy0 - geom.y * sy;
+
+				auto map = [&](float gx, float gy, D2D1_POINT_2F& p)
+				{
+					p = D2D1::Point2F(ox + gx * sx, oy + gy * sy);
+				};
+
+				if (geom.kind == ShapeGeometryKind::Rect)
+				{
+					m_rt->DrawRectangle(D2D1::RectF(ix0, iy0, ix1, iy1),
+										ico.Get(), 1.5f);
+				}
+				else if (geom.kind == ShapeGeometryKind::Ellipse)
+				{
+					D2D1_ELLIPSE e = D2D1::Ellipse(
+						D2D1::Point2F((ix0 + ix1) * 0.5f, (iy0 + iy1) * 0.5f),
+						(ix1 - ix0) * 0.5f, (iy1 - iy0) * 0.5f);
+					m_rt->DrawEllipse(e, ico.Get(), 1.5f);
+				}
 			}
-			else if (item.kind == StencilItemKind::Ellipse)
+			else
 			{
-				D2D1_ELLIPSE ico = D2D1::Ellipse(
-					D2D1::Point2F((ico_x0 + ico_x1) * 0.5f, (ico_y0 + ico_y1) * 0.5f),
-					(ico_x1 - ico_x0) * 0.5f, (ico_y1 - ico_y0) * 0.5f);
-				m_rt->DrawEllipse(ico, ico_brush.Get(), 1.5f);
-			}
-			else if (item.kind == StencilItemKind::Connector)
-			{
-				// Draw a diagonal line with a small arrowhead
-				m_rt->DrawLine(D2D1::Point2F(ico_x0, ico_y1),
-							   D2D1::Point2F(ico_x1, ico_y0),
-							   ico_brush.Get(), 1.5f);
-				// Arrowhead at (ico_x1, ico_y0)
-				float ax = ico_x1, ay = ico_y0;
-				m_rt->DrawLine(D2D1::Point2F(ax, ay), D2D1::Point2F(ax - 8.f, ay + 3.f), ico_brush.Get(), 1.5f);
-				m_rt->DrawLine(D2D1::Point2F(ax, ay), D2D1::Point2F(ax - 3.f, ay + 8.f), ico_brush.Get(), 1.5f);
+				// Connector sentinel — diagonal arrow
+				m_rt->DrawLine(D2D1::Point2F(ix0, iy1),
+							   D2D1::Point2F(ix1, iy0), ico.Get(), 1.5f);
+				m_rt->DrawLine(D2D1::Point2F(ix1, iy0),
+							   D2D1::Point2F(ix1 - 8.f, iy0 + 3.f), ico.Get(), 1.5f);
+				m_rt->DrawLine(D2D1::Point2F(ix1, iy0),
+							   D2D1::Point2F(ix1 - 3.f, iy0 + 8.f), ico.Get(), 1.5f);
 			}
 
 			// Label
-			if (m_label_fmt)
+			if (m_label_fmt && !tile.name.empty())
 			{
-				ComPtr<ID2D1SolidColorBrush> lbl_brush;
-				m_rt->CreateSolidColorBrush(D2D1::ColorF(0.85f, 0.85f, 0.85f), lbl_brush.GetAddressOf());
-				m_rt->DrawText(item.label, static_cast<UINT32>(wcslen(item.label)),
-							   m_label_fmt.Get(), tile, lbl_brush.Get());
+				ComPtr<ID2D1SolidColorBrush> lbl;
+				m_rt->CreateSolidColorBrush(D2D1::ColorF(0.85f, 0.85f, 0.85f),
+											lbl.GetAddressOf());
+				m_rt->DrawText(tile.name.c_str(),
+							   static_cast<UINT32>(tile.name.size()),
+							   m_label_fmt.Get(), tr, lbl.Get());
 			}
 		}
 
 		m_rt->EndDraw();
 	}
 
-	LRESULT StencilWindow::handle_message(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	LRESULT StencilWindow::handle_message(HWND hwnd, UINT msg,
+										  WPARAM wParam, LPARAM lParam)
 	{
 		switch (msg)
 		{
 		case WM_SIZE:
 		{
-			const UINT w = LOWORD(lParam);
-			const UINT h = HIWORD(lParam);
-			if (m_rt)
-				m_rt->Resize(D2D1::SizeU(w, h));
+			const UINT w = LOWORD(lParam), h = HIWORD(lParam);
+			if (m_rt) m_rt->Resize(D2D1::SizeU(w, h));
 			m_stencil.layout(static_cast<float>(h));
 			return 0;
 		}
-
 		case WM_PAINT:
 		{
 			PAINTSTRUCT ps;
@@ -280,23 +313,19 @@ namespace ui::win32
 			EndPaint(hwnd, &ps);
 			return 0;
 		}
-
 		case WM_LBUTTONDOWN:
 		{
 			const float fx = static_cast<float>(LOWORD(lParam));
 			const float fy = static_cast<float>(HIWORD(lParam));
-			auto kind = m_stencil.hit_test(fx, fy);
-			if (kind != StencilItemKind::None && on_tile_click)
-				on_tile_click(kind);
+			std::size_t idx = m_stencil.hit_test(fx, fy);
+			if (idx != Stencil::npos && on_tile_click)
+				on_tile_click(idx);
 			return 0;
 		}
-
 		case WM_CLOSE:
-			// Hide instead of destroying so the user can re-open later
 			ShowWindow(hwnd, SW_HIDE);
 			return 0;
 		}
-
 		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 }

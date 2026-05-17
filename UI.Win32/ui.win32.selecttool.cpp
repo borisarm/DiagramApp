@@ -2,6 +2,8 @@ module;
 
 #define NOMINMAX
 #include <Windows.h>
+#include <wrl/client.h>
+#include "../Domain/shape_interfaces.h"
 
 module ui.win32.selecttool;
 
@@ -118,7 +120,7 @@ namespace ui::win32
         {
             selected_shapes.clear();
             for (auto& s : diagram.shapes())
-                selected_shapes.push_back(&s);
+                selected_shapes.push_back(s.Get());
             state = SelectState::Selected;
         }
 
@@ -127,9 +129,11 @@ namespace ui::win32
             if (!selected_shapes.empty())
             {
                 diagram.commit();
-                for (auto* s : selected_shapes)
-                    diagram.remove_shape(s);
+                // copy to avoid iterator invalidation during removal
+                auto to_delete = selected_shapes;
                 selected_shapes.clear();
+                for (auto* s : to_delete)
+                    diagram.remove_shape(s);
                 state = SelectState::Idle;
             }
         }
@@ -165,7 +169,7 @@ namespace ui::win32
         return (dx * dx + dy * dy) > 4.0f; // 2px threshold
     }
 
-    void SelectTool::commit_selection(const domain::Shape* s, bool shift, bool ctrl)
+    void SelectTool::commit_selection(IShape* s, bool shift, bool ctrl)
     {
         if (!s)
         {
@@ -223,10 +227,10 @@ namespace ui::win32
         float x1 = std::max(lasso_x0, lasso_x1);
         float y1 = std::max(lasso_y0, lasso_y1);
 
-        for (auto& s : diagram.shapes())
+        for (auto& sp : diagram.shapes())
         {
-            if (diagram.shape_intersects_rect(s, x0, y0, x1, y1))
-                selected_shapes.push_back(&s);
+            if (diagram.shape_intersects_rect(sp.Get(), x0, y0, x1, y1))
+                selected_shapes.push_back(sp.Get());
         }
     }
 
