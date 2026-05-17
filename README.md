@@ -153,7 +153,7 @@ A floating Win32 child window (`ui.win32.stencil`) shows one tile per registered
 
 ## 🛠 Build Requirements
 
-- **Visual Studio 2022 or later**
+- **Visual Studio 2026 or later**
 - **C++20 modules enabled** (`/std:c++20`)
 - **Direct2D / DirectWrite** (Windows SDK)
 - **WRL** (`wrl/client.h`) for `ComPtr`
