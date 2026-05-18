@@ -91,6 +91,7 @@ namespace ui::win32
 	private:
 		void paint();
 		void init_d2d();
+		void resize_to_fit();
 
 		HWND    m_hwnd = nullptr;
 		Stencil m_stencil;

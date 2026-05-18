@@ -45,7 +45,7 @@ namespace ui::win32
 		m_tiles.push_back(std::move(tile));
 	}
 
-	void Stencil::layout(float panel_height)
+	void Stencil::layout(float /*panel_height*/)
 	{
 		float y = STENCIL_PADDING + 20.f;
 		for (auto& tile : m_tiles)
@@ -55,7 +55,6 @@ namespace ui::win32
 			tile.x1 = STENCIL_WIDTH - STENCIL_PADDING;
 			tile.y1 = y + STENCIL_TILE_H - STENCIL_PADDING;
 			y += STENCIL_TILE_H;
-			if (y > panel_height) break;
 		}
 	}
 
@@ -133,11 +132,39 @@ namespace ui::win32
 		if (m_hwnd) { DestroyWindow(m_hwnd); m_hwnd = nullptr; }
 	}
 
+	void StencilWindow::resize_to_fit()
+	{
+		if (!m_hwnd) return;
+
+		const int client_w = static_cast<int>(STENCIL_WIDTH + 2.f * STENCIL_PADDING);
+		const int client_h = static_cast<int>(20.f
+			+ static_cast<float>(m_stencil.tiles().size()) * STENCIL_TILE_H
+			+ STENCIL_PADDING);
+
+		// Convert desired client size to window size (accounts for caption/borders)
+		RECT r{ 0, 0, client_w, client_h };
+		DWORD style   = static_cast<DWORD>(GetWindowLong(m_hwnd, GWL_STYLE));
+		DWORD exstyle = static_cast<DWORD>(GetWindowLong(m_hwnd, GWL_EXSTYLE));
+		AdjustWindowRectEx(&r, style, FALSE, exstyle);
+
+		const int win_w = r.right  - r.left;
+		const int win_h = r.bottom - r.top;
+
+		SetWindowPos(m_hwnd, nullptr, 0, 0, win_w, win_h,
+			SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+		// WM_SIZE triggered by SetWindowPos will call layout()
+	}
+
 	void StencilWindow::populate(const std::vector<ComPtr<IShapeClass>>& classes)
 	{
 		m_stencil.populate(classes);
 		m_stencil.add_connector_tile();
-		if (m_hwnd) InvalidateRect(m_hwnd, nullptr, FALSE);
+		if (m_hwnd)
+		{
+			resize_to_fit();
+			InvalidateRect(m_hwnd, nullptr, FALSE);
+		}
 	}
 
 	void StencilWindow::set_active(std::size_t tile_index)
