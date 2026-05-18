@@ -2,6 +2,7 @@ module;
 
 #define NOMINMAX
 #include <Windows.h>
+#include <windowsx.h>
 #include <wrl/client.h>
 #include "../Domain/shape_interfaces.h"
 #include "../Domain/domain.shape_impls.h"
@@ -35,6 +36,24 @@ namespace
 	std::unique_ptr<ui::win32::AddShapeTool>    g_add_shape_tool;
 	std::unique_ptr<ui::win32::AddConnectorTool> g_add_connector_tool;
 	ui::win32::StencilWindow                    g_stencil_window;
+
+	// Pan state (middle-mouse or Space+drag)
+	bool  g_panning    = false;
+	bool  g_space_down = false;
+	float g_pan_last_x = 0.f;
+	float g_pan_last_y = 0.f;
+
+	// Convert a raw screen point (from WM_* lParam) to world space.
+	ui::win32::PointerEvent screen_to_world_event(float sx, float sy, WPARAM wParam)
+	{
+		ui::win32::PointerEvent e{};
+		g_d2d.view.screen_to_world(sx, sy, e.x, e.y);
+		e.left  = (wParam & MK_LBUTTON)  != 0;
+		e.right = (wParam & MK_RBUTTON)  != 0;
+		e.shift = (wParam & MK_SHIFT)    != 0;
+		e.ctrl  = (wParam & MK_CONTROL)  != 0;
+		return e;
+	}
 
 	// ----------------------------------------------------------------
 	// Activate the tool that corresponds to a stencil tile index.
@@ -154,13 +173,19 @@ namespace
 
 		if (fy >= g_d2d.canvas_rect.bottom) return;
 
-		ui::win32::PointerEvent e{};
-		e.x     = fx;
-		e.y     = fy;
-		e.left  = true;
-		e.shift = (wParam & MK_SHIFT)   != 0;
-		e.ctrl  = (wParam & MK_CONTROL) != 0;
+		// Space + left drag = pan
+		if (g_space_down)
+		{
+			g_panning    = true;
+			g_pan_last_x = fx;
+			g_pan_last_y = fy;
+			SetCapture(hwnd);
+			return;
+		}
+
 		SetCapture(hwnd);
+		auto e = screen_to_world_event(fx, fy, wParam);
+		e.left = true;
 		g_tool_manager.dispatch_pointer_down(e);
 
 		// Connector tool commits on the second pointer_down
@@ -179,15 +204,19 @@ namespace
 		const float fx = static_cast<float>(LOWORD(lParam));
 		const float fy = static_cast<float>(HIWORD(lParam));
 
+		if (g_panning)
+		{
+			g_d2d.view.offset_x += fx - g_pan_last_x;
+			g_d2d.view.offset_y += fy - g_pan_last_y;
+			g_pan_last_x = fx;
+			g_pan_last_y = fy;
+			InvalidateRect(g_hwnd, nullptr, FALSE);
+			return;
+		}
+
 		if (fy >= g_d2d.canvas_rect.bottom) return;
 
-		ui::win32::PointerEvent e{};
-		e.x     = fx;
-		e.y     = fy;
-		e.left  = (wParam & MK_LBUTTON)  != 0;
-		e.right = (wParam & MK_RBUTTON)  != 0;
-		e.shift = (wParam & MK_SHIFT)    != 0;
-		e.ctrl  = (wParam & MK_CONTROL)  != 0;
+		const auto e = screen_to_world_event(fx, fy, wParam);
 		g_tool_manager.dispatch_pointer_move(e);
 	}
 
@@ -196,15 +225,18 @@ namespace
 		const float fx = static_cast<float>(LOWORD(lParam));
 		const float fy = static_cast<float>(HIWORD(lParam));
 
+		if (g_panning)
+		{
+			g_panning = false;
+			ReleaseCapture();
+			return;
+		}
+
 		ReleaseCapture();
 
 		if (fy >= g_d2d.canvas_rect.bottom) return;
 
-		ui::win32::PointerEvent e{};
-		e.x     = fx;
-		e.y     = fy;
-		e.shift = (wParam & MK_SHIFT)   != 0;
-		e.ctrl  = (wParam & MK_CONTROL) != 0;
+		auto e = screen_to_world_event(fx, fy, wParam);
 		g_tool_manager.dispatch_pointer_up(e);
 
 		// If an add-shape or connector tool just finished, revert to SelectTool
@@ -224,6 +256,32 @@ namespace
 
 	void on_key_down(WPARAM wParam)
 	{
+		if (wParam == VK_SPACE) { g_space_down = true; return; }
+
+		// Ctrl+0 – reset view
+		if (wParam == '0' && (GetKeyState(VK_CONTROL) & 0x8000))
+		{
+			g_d2d.view = ui::win32::d2d::ViewTransform{};
+			InvalidateRect(g_hwnd, nullptr, FALSE);
+			return;
+		}
+
+		// Ctrl+= / Ctrl+- or Numpad+/- – zoom in/out centred on window
+		if (wParam == VK_OEM_PLUS || wParam == VK_ADD)
+		{
+			RECT rc{}; GetClientRect(g_hwnd, &rc);
+			g_d2d.view.zoom_at(1.15f, (rc.right - rc.left) * 0.5f, (rc.bottom - rc.top) * 0.5f);
+			InvalidateRect(g_hwnd, nullptr, FALSE);
+			return;
+		}
+		if (wParam == VK_OEM_MINUS || wParam == VK_SUBTRACT)
+		{
+			RECT rc{}; GetClientRect(g_hwnd, &rc);
+			g_d2d.view.zoom_at(1.f / 1.15f, (rc.right - rc.left) * 0.5f, (rc.bottom - rc.top) * 0.5f);
+			InvalidateRect(g_hwnd, nullptr, FALSE);
+			return;
+		}
+
 		ui::win32::KeyEvent e{};
 		e.key   = static_cast<int>(wParam);
 		e.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
@@ -234,12 +292,43 @@ namespace
 
 	void on_key_up(WPARAM wParam)
 	{
+		if (wParam == VK_SPACE) { g_space_down = false; g_panning = false; return; }
+
 		ui::win32::KeyEvent e{};
 		e.key   = static_cast<int>(wParam);
 		e.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
 		e.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
 		e.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
 		g_tool_manager.dispatch_key_up(e);
+	}
+
+	// ----------------------------------------------------------------
+	void on_mouse_wheel(HWND hwnd, WPARAM wParam, LPARAM lParam)
+	{
+		// Convert cursor from screen to client coordinates
+		POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+		ScreenToClient(hwnd, &pt);
+		const float fx = static_cast<float>(pt.x);
+		const float fy = static_cast<float>(pt.y);
+
+		const int   delta   = GET_WHEEL_DELTA_WPARAM(wParam);
+		const float factor  = (delta > 0) ? 1.15f : (1.f / 1.15f);
+		g_d2d.view.zoom_at(factor, fx, fy);
+		InvalidateRect(hwnd, nullptr, FALSE);
+	}
+
+	void on_mbutton_down(HWND hwnd, WPARAM /*wParam*/, LPARAM lParam)
+	{
+		g_panning    = true;
+		g_pan_last_x = static_cast<float>(LOWORD(lParam));
+		g_pan_last_y = static_cast<float>(HIWORD(lParam));
+		SetCapture(hwnd);
+	}
+
+	void on_mbutton_up(WPARAM /*wParam*/, LPARAM /*lParam*/)
+	{
+		g_panning = false;
+		ReleaseCapture();
 	}
 
 	// ----------------------------------------------------------------
@@ -255,6 +344,10 @@ namespace
 		case WM_LBUTTONDOWN: on_lbutton_down(hwnd, wParam, lParam); return 0;
 		case WM_MOUSEMOVE:   on_mouse_move(wParam, lParam);          return 0;
 		case WM_LBUTTONUP:   on_lbutton_up(wParam, lParam);          return 0;
+
+		case WM_MBUTTONDOWN: on_mbutton_down(hwnd, wParam, lParam);  return 0;
+		case WM_MBUTTONUP:   on_mbutton_up(wParam, lParam);          return 0;
+		case WM_MOUSEWHEEL:  on_mouse_wheel(hwnd, wParam, lParam);   return 0;
 
 		case WM_KEYDOWN: on_key_down(wParam); return 0;
 		case WM_KEYUP:   on_key_up(wParam);   return 0;

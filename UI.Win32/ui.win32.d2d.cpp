@@ -139,6 +139,9 @@ namespace ui::win32::d2d
         ctx.renderTarget->PushAxisAlignedClip(ctx.canvas_rect,
             D2D1_ANTIALIAS_MODE_ALIASED);
 
+        // ── Apply view transform (zoom + pan) ────────────────────────
+        ctx.renderTarget->SetTransform(ctx.view.matrix());
+
         // ── 1. Draw all shapes ───────────────────────────────────────
         for (auto& sp : ctx.diagram->shapes())
         {
@@ -189,7 +192,8 @@ namespace ui::win32::d2d
             }
         }
 
-        // ── 3. Lasso overlay ─────────────────────────────────────────
+        // ── 3. Lasso overlay (world space, drawn with view transform) ──
+        ctx.renderTarget->SetTransform(ctx.view.matrix());
         if (ctx.lasso_active && ctx.lasso_stroke_style)
         {
             float x0 = ctx.lasso_x0 < ctx.lasso_x1 ? ctx.lasso_x0 : ctx.lasso_x1;
@@ -206,7 +210,8 @@ namespace ui::win32::d2d
                 ctx.lasso_stroke_style.Get());
         }
 
-        // ── 3b. Committed connectors ─────────────────────────────────
+        // ── 3b. Committed connectors (world space) ───────────────────
+        ctx.renderTarget->SetTransform(ctx.view.matrix());
         {
             ComPtr<ID2D1SolidColorBrush> conn_brush;
             ctx.renderTarget->CreateSolidColorBrush(
@@ -257,7 +262,7 @@ namespace ui::win32::d2d
             }
         }
 
-        // ── 3c. Connector preview (AddConnectorTool SourceLocked) ────
+        // ── 3c. Connector preview (world space) ──────────────────────
         if (ctx.connector_preview_active)
         {
             ComPtr<ID2D1SolidColorBrush> cprev_brush;
@@ -272,6 +277,7 @@ namespace ui::win32::d2d
         }
 
         ctx.renderTarget->PopAxisAlignedClip();
+        ctx.renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
 
         // ── 4. Shape preview overlay (add tools) ─────────────────────
         if (ctx.preview_active && ctx.preview_stroke_style)
@@ -338,7 +344,8 @@ namespace ui::win32::d2d
                     L"  Tool: "    + ctx.status_tool +
                     L"   \u2502   Stencil: " + stencil_part +
                     L"   \u2502   Shapes: "  + std::to_wstring(ctx.status_shape_count) +
-                    L"   \u2502   Selected: " + std::to_wstring(ctx.status_selected_count);
+                    L"   \u2502   Selected: " + std::to_wstring(ctx.status_selected_count) +
+                    L"   \u2502   Zoom: " + std::to_wstring(static_cast<int>(ctx.view.scale * 100.f)) + L"%";
 
                 // Left-side status fields
                 D2D1_RECT_F text_rect = D2D1::RectF(0.f, bar_y, rt_size.width * 0.75f, rt_size.height);

@@ -15,6 +15,47 @@ export namespace ui::win32::d2d
 {
     constexpr float STATUS_BAR_HEIGHT = 26.f;
 
+    // ----------------------------------------------------------------
+    // View transform: screen = world * scale + offset
+    // ----------------------------------------------------------------
+    export struct ViewTransform
+    {
+        float scale    = 1.f;
+        float offset_x = 0.f;
+        float offset_y = 0.f;
+
+        static constexpr float min_scale =  0.05f;
+        static constexpr float max_scale = 20.f;
+
+        void world_to_screen(float wx, float wy, float& sx, float& sy) const noexcept
+        {
+            sx = wx * scale + offset_x;
+            sy = wy * scale + offset_y;
+        }
+
+        void screen_to_world(float sx, float sy, float& wx, float& wy) const noexcept
+        {
+            wx = (sx - offset_x) / scale;
+            wy = (sy - offset_y) / scale;
+        }
+
+        // Zoom by factor, keeping the screen point (px, py) fixed
+        void zoom_at(float factor, float px, float py) noexcept
+        {
+            const float new_scale = scale * factor;
+            if (new_scale < min_scale || new_scale > max_scale) return;
+            offset_x = px - (px - offset_x) * factor;
+            offset_y = py - (py - offset_y) * factor;
+            scale    = new_scale;
+        }
+
+        D2D1_MATRIX_3X2_F matrix() const noexcept
+        {
+            return D2D1::Matrix3x2F::Scale(scale, scale) *
+                   D2D1::Matrix3x2F::Translation(offset_x, offset_y);
+        }
+    };
+
     struct D2DContext
     {
         Microsoft::WRL::ComPtr<ID2D1Factory>          factory;
@@ -29,7 +70,10 @@ export namespace ui::win32::d2d
         const domain::Diagram*           diagram         = nullptr;
         const std::vector<IShape*>*        selected_shapes = nullptr;
 
-        // Lasso overlay
+        // View transform (zoom + pan)
+        ViewTransform view{};
+
+        // Lasso overlay (screen space)
         bool  lasso_active = false;
         float lasso_x0 = 0, lasso_y0 = 0;
         float lasso_x1 = 0, lasso_y1 = 0;
