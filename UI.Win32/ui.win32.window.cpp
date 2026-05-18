@@ -272,8 +272,8 @@ namespace ui::win32
 	{
 		// Seed the diagram with a couple of built-in shapes via the registry.
 		// The registry is already populated by run() before this is called.
-		auto rect_class = g_registry.find_class(L"builtin.rectangle");
-		auto ell_class  = g_registry.find_class(L"builtin.ellipse");
+		auto rect_class = g_registry.find_class(L"com.diagramapp.rectangle");
+		auto ell_class  = g_registry.find_class(L"com.diagramapp.ellipse");
 
 		auto make = [&](ComPtr<IShapeClass>& cls, float x, float y, float w, float h)
 		{
