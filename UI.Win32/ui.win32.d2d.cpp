@@ -108,6 +108,39 @@ namespace ui::win32::d2d
     // ----------------------------------------------------------------
     // render
     // ----------------------------------------------------------------
+
+    // Helper: unpack 0xAARRGGBB into a D2D1_COLOR_F
+    static D2D1_COLOR_F unpack_color(UINT32 c)
+    {
+        return D2D1::ColorF(
+            ((c >> 16) & 0xFF) / 255.f,
+            ((c >>  8) & 0xFF) / 255.f,
+            ( c        & 0xFF) / 255.f,
+            ((c >> 24) & 0xFF) / 255.f);
+    }
+
+    // Helper: get fill / stroke colors from IShapeProperties, with fallback.
+    static void shape_colors(IShape* s,
+                             D2D1_COLOR_F& fill,
+                             D2D1_COLOR_F& stroke)
+    {
+        constexpr UINT32 k_default = 0xFF6495ED;   // cornflower blue
+        fill   = unpack_color(k_default);
+        stroke = unpack_color(k_default);
+
+        IShapeProperties* props = nullptr;
+        if (SUCCEEDED(s->QueryInterface(__uuidof(IShapeProperties),
+                                        reinterpret_cast<void**>(&props))) && props)
+        {
+            UINT32 fc = k_default, sc = k_default;
+            props->GetColor(L"fill_color",   &fc);
+            props->GetColor(L"stroke_color", &sc);
+            fill   = unpack_color(fc);
+            stroke = unpack_color(sc);
+            props->Release();
+        }
+    }
+
     void render(D2DContext& ctx)
     {
         if (!ctx.renderTarget || !ctx.diagram)
@@ -119,10 +152,6 @@ namespace ui::win32::d2d
         ctx.renderTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
 
         // ── Brushes ──────────────────────────────────────────────────
-        ComPtr<ID2D1SolidColorBrush> shape_brush;
-        ctx.renderTarget->CreateSolidColorBrush(
-            D2D1::ColorF(D2D1::ColorF::CornflowerBlue), shape_brush.GetAddressOf());
-
         ComPtr<ID2D1SolidColorBrush> sel_fill_brush;
         ctx.renderTarget->CreateSolidColorBrush(
             D2D1::ColorF(1.f, 0.55f, 0.f, 0.18f), sel_fill_brush.GetAddressOf());
@@ -150,19 +179,48 @@ namespace ui::win32::d2d
             s->GetGeometry(&g);
             float x = g.x, y = g.y, w = g.width, h = g.height;
 
+            D2D1_COLOR_F fill_col, stroke_col;
+            shape_colors(s, fill_col, stroke_col);
+
+            ComPtr<ID2D1SolidColorBrush> fill_br, stroke_br;
+            ctx.renderTarget->CreateSolidColorBrush(fill_col,   fill_br.GetAddressOf());
+            ctx.renderTarget->CreateSolidColorBrush(stroke_col, stroke_br.GetAddressOf());
+
             if (g.kind == ShapeGeometryKind::Rect)
             {
                 D2D1_RECT_F r = D2D1::RectF(x, y, x + w, y + h);
-                ctx.renderTarget->FillRectangle(r, shape_brush.Get());
-                ctx.renderTarget->DrawRectangle(r, shape_brush.Get(), 2.f);
+                ctx.renderTarget->FillRectangle(r, fill_br.Get());
+                ctx.renderTarget->DrawRectangle(r, stroke_br.Get(), 2.f);
             }
             else if (g.kind == ShapeGeometryKind::Ellipse)
             {
                 D2D1_ELLIPSE e = D2D1::Ellipse(
                     D2D1::Point2F(x + w * 0.5f, y + h * 0.5f),
                     w * 0.5f, h * 0.5f);
-                ctx.renderTarget->FillEllipse(e, shape_brush.Get());
-                ctx.renderTarget->DrawEllipse(e, shape_brush.Get(), 2.f);
+                ctx.renderTarget->FillEllipse(e, fill_br.Get());
+                ctx.renderTarget->DrawEllipse(e, stroke_br.Get(), 2.f);
+            }
+
+            // Label text
+            IShapeProperties* props = nullptr;
+            if (SUCCEEDED(s->QueryInterface(__uuidof(IShapeProperties),
+                                            reinterpret_cast<void**>(&props))) && props)
+            {
+                BSTR label = nullptr;
+                props->GetString(L"label", &label);
+                if (label && label[0] && ctx.status_text_format)
+                {
+                    ComPtr<ID2D1SolidColorBrush> text_br;
+                    ctx.renderTarget->CreateSolidColorBrush(
+                        D2D1::ColorF(D2D1::ColorF::Black), text_br.GetAddressOf());
+                    D2D1_RECT_F tr = D2D1::RectF(x + 2.f, y + 2.f, x + w - 2.f, y + h - 2.f);
+                    ctx.renderTarget->DrawText(
+                        label, static_cast<UINT32>(wcslen(label)),
+                        ctx.status_text_format.Get(), tr, text_br.Get());
+                    SysFreeString(label);
+                }
+                else if (label) SysFreeString(label);
+                props->Release();
             }
         }
 

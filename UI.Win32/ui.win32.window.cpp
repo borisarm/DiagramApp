@@ -19,6 +19,7 @@ import ui.win32.selecttool;
 import ui.win32.addshapetool;
 import ui.win32.addconnectortool;
 import ui.win32.stencil;
+import ui.win32.properties;
 import ui.win32.tool;
 
 using Microsoft::WRL::ComPtr;
@@ -36,6 +37,7 @@ namespace
 	std::unique_ptr<ui::win32::AddShapeTool>    g_add_shape_tool;
 	std::unique_ptr<ui::win32::AddConnectorTool> g_add_connector_tool;
 	ui::win32::StencilWindow                    g_stencil_window;
+	ui::win32::PropertiesWindow                 g_properties_window;
 
 	// Pan state (middle-mouse or Space+drag)
 	bool  g_panning    = false;
@@ -141,6 +143,18 @@ namespace
 
 		g_d2d.status_shape_count    = static_cast<int>(ui::win32::g_diagram.shapes().size());
 		g_d2d.status_selected_count = static_cast<int>(g_select_tool->selected().size());
+
+		// Populate properties panel with the first selected shape (or clear it)
+		{
+			const auto& sel = g_select_tool->selected();
+			IShape* shape = sel.empty() ? nullptr : sel.front();
+			static IShape* s_last_populated = nullptr;
+			if (shape != s_last_populated)
+			{
+				s_last_populated = shape;
+				g_properties_window.populate(shape);
+			}
+		}
 	}
 
 	// ----------------------------------------------------------------
@@ -151,7 +165,6 @@ namespace
 		g_hwnd = hwnd;
 		g_d2d  = ui::win32::d2d::create_d2d_context(hwnd, &ui::win32::g_diagram);
 	}
-
 	void on_size(UINT width, UINT height)
 	{
 		ui::win32::d2d::resize(g_d2d, width, height);
@@ -436,6 +449,19 @@ namespace ui::win32
 			g_stencil_window.on_tile_click = activate_tool_for_tile;
 			g_stencil_window.create(hwnd, wr.left - 130, wr.top);
 			g_stencil_window.populate(g_registry.classes());
+		}
+
+		// ── 6. Create properties panel (after ShowWindow) ────────────
+		{
+			RECT wr{};
+			GetWindowRect(hwnd, &wr);
+			g_properties_window.create(hwnd, wr.right + 10, wr.top);
+			g_properties_window.on_commit = []()
+			{
+				// User edited a property → commit a diagram snapshot for undo
+				ui::win32::g_diagram.commit();
+				InvalidateRect(g_hwnd, nullptr, FALSE);
+			};
 		}
 
 		// ── 6. Message pump ──────────────────────────────────────────

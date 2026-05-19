@@ -164,6 +164,8 @@
     <ClCompile Include="ui.win32.d2d.cpp" />
     <ClCompile Include="ui.win32.d2d.ixx" />
     <ClCompile Include="ui.win32.main.cpp" />
+    <ClCompile Include="ui.win32.properties.cpp" />
+    <ClCompile Include="ui.win32.properties.ixx" />
     <ClCompile Include="ui.win32.selecttool.cpp" />
     <ClCompile Include="ui.win32.selecttool.ixx" />
     <ClCompile Include="ui.win32.stencil.cpp" />

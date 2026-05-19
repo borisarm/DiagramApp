@@ -114,3 +114,75 @@ IShape : public IUnknown
 typedef HRESULT (STDAPICALLTYPE *PFN_DllGetShapePlugin)(IShapePlugin** ppPlugin);
 // extern "C" __declspec(dllexport)
 // HRESULT STDAPICALLTYPE DllGetShapePlugin(IShapePlugin** ppPlugin);
+
+// ---------------------------------------------------------------------------
+// Property system
+// ---------------------------------------------------------------------------
+
+// Scalar types a property value can hold.
+enum class ShapePropertyType : UINT32
+{
+    Float  = 0,   // single float (position, size, radius…)
+    Color  = 1,   // packed 0xAARRGGBB (alpha in high byte)
+    String = 2,   // arbitrary text (label, name, …)
+};
+
+// Category tag — for grouping in the properties panel.
+enum class ShapePropertyCategory : UINT32
+{
+    Geometry = 0,
+    Style    = 1,
+    Text     = 2,
+    Custom   = 3,
+};
+
+// Static descriptor for one property — returned by IShapeProperties::GetDescriptor.
+struct ShapePropertyDescriptor
+{
+    const wchar_t*          key;       // stable ASCII/wide key, e.g. L"x"
+    const wchar_t*          label;     // human-readable, e.g. L"X Position"
+    ShapePropertyType       type;
+    ShapePropertyCategory   category;
+    BOOL                    read_only; // TRUE → displayed but not editable
+};
+
+// ---------------------------------------------------------------------------
+// IShapeProperties — optional interface; QueryInterface from IShape.
+// Shapes that do not support it return E_NOINTERFACE from QI and the host
+// falls back to defaults.
+// ---------------------------------------------------------------------------
+// {D1E47B3A-92CF-4A58-BF20-7E3C1D6A0845}
+MIDL_INTERFACE("D1E47B3A-92CF-4A58-BF20-7E3C1D6A0845")
+IShapeProperties : public IUnknown
+{
+    // Number of properties this shape exposes.
+    virtual HRESULT STDMETHODCALLTYPE GetPropertyCount(UINT32* pCount) = 0;
+
+    // Descriptor for property at index.
+    virtual HRESULT STDMETHODCALLTYPE GetDescriptor(
+        UINT32 index, ShapePropertyDescriptor* pDesc) = 0;
+
+    // Read a Float property by key.  Returns E_INVALIDARG if key is not Float.
+    virtual HRESULT STDMETHODCALLTYPE GetFloat(
+        const wchar_t* key, float* pValue) = 0;
+
+    // Write a Float property.  Shape should clamp/validate.
+    virtual HRESULT STDMETHODCALLTYPE SetFloat(
+        const wchar_t* key, float value) = 0;
+
+    // Read a Color property (packed 0xAARRGGBB).
+    virtual HRESULT STDMETHODCALLTYPE GetColor(
+        const wchar_t* key, UINT32* pValue) = 0;
+
+    // Write a Color property.
+    virtual HRESULT STDMETHODCALLTYPE SetColor(
+        const wchar_t* key, UINT32 value) = 0;
+
+    // Read a String property; caller must SysFreeString the result.
+    virtual HRESULT STDMETHODCALLTYPE GetString(
+        const wchar_t* key, BSTR* pValue) = 0;
+
+    // Write a String property.
+    virtual HRESULT STDMETHODCALLTYPE SetString(
+        const wchar_t* key, const wchar_t* value) = 0;
+};
