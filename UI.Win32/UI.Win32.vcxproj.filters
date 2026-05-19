@@ -40,29 +40,29 @@
     <ClCompile Include="ui.win32.toolmanager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ui.win32.stencil.ixx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ui.win32.stencil.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ui.win32.addconnectortool.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ui.win32.addconnectortool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ui.win32.addshapetool.ixx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ui.win32.addshapetool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ui.win32.properties.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ui.win32.properties.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.addconnectortool.ixx">
+      <Filter>Module FIles</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.addshapetool.ixx">
+      <Filter>Module FIles</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.properties.ixx">
+      <Filter>Module FIles</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.win32.stencil.ixx">
+      <Filter>Module FIles</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

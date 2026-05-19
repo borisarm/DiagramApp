@@ -19,11 +19,11 @@
     <ClCompile Include="domain.shape_impls.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="domain.shape_registry.ixx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="domain.shape_registry.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="domain.shape_registry.ixx">
+      <Filter>Module Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
