@@ -3,6 +3,8 @@ module;
 #define NOMINMAX
 #include <Windows.h>
 #include <windowsx.h>
+#include <commctrl.h>
+#pragma comment(lib, "comctl32.lib")
 #include "../Domain/shape_interfaces.h"
 
 module ui.win32.properties;
@@ -14,6 +16,30 @@ import <cwchar>;
 
 namespace ui::win32
 {
+	// -----------------------------------------------------------------------
+	// Edit subclass proc — forwards Enter key as a flush signal
+	// -----------------------------------------------------------------------
+	static LRESULT CALLBACK EditSubclassProc(HWND hwnd, UINT msg, WPARAM wParam,
+											 LPARAM lParam, UINT_PTR, DWORD_PTR dwRefData)
+	{
+		if (msg == WM_KEYDOWN && wParam == VK_RETURN)
+		{
+			// Simulate losing focus on this control so the parent flushes the row
+			HWND parent = GetParent(hwnd);
+			SendMessage(parent, WM_COMMAND,
+						MAKEWPARAM(0, EN_KILLFOCUS),
+						reinterpret_cast<LPARAM>(hwnd));
+			return 0;
+		}
+		return DefSubclassProc(hwnd, msg, wParam, lParam);
+	}
+
+	static void subclass_edit(HWND edit)
+	{
+		if (edit)
+			SetWindowSubclass(edit, EditSubclassProc, 1, 0);
+	}
+
 	// -----------------------------------------------------------------------
 	// Helpers
 	// -----------------------------------------------------------------------
@@ -101,8 +127,8 @@ namespace ui::win32
 	void PropertiesWindow::populate(IShape* shape)
 	{
 		m_shape = shape;
+		destroy_controls();   // must happen before m_rows.clear() — needs the HWNDs
 		m_rows.clear();
-		destroy_controls();
 
 		if (!shape)
 		{
@@ -232,12 +258,14 @@ namespace ui::win32
 				auto make_rgb = [&](int val, int ox) -> HWND {
 					wchar_t buf[8];
 					swprintf_s(buf, L"%d", val);
-					DWORD style = WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_BORDER;
+					DWORD style = WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_BORDER | ES_AUTOHSCROLL;
 					if (row.read_only) style |= ES_READONLY;
 					HWND h = CreateWindowEx(0, L"EDIT", buf, style,
 						edit_x + ox, y, box_w, ROW_H - 2,
 						m_hwnd, nullptr, hInst, nullptr);
 					SendMessage(h, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
+					SendMessage(h, EM_SETLIMITTEXT, 3, 0);
+					subclass_edit(h);
 					return h;
 				};
 				row.edit_r = make_rgb(r, 0);
@@ -252,6 +280,7 @@ namespace ui::win32
 					edit_x, y, edit_w, ROW_H - 2,
 					m_hwnd, nullptr, hInst, nullptr);
 				SendMessage(row.edit, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
+				subclass_edit(row.edit);
 			}
 			y += ROW_H;
 		}

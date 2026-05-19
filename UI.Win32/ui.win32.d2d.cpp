@@ -87,6 +87,21 @@ namespace ui::win32::d2d
             ctx.status_text_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
         }
 
+        // Label text format — centred inside shapes, slightly larger
+        ctx.dwrite_factory->CreateTextFormat(
+            L"Segoe UI", nullptr,
+            DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL,
+            13.f, L"en-us",
+            ctx.label_text_format.GetAddressOf());
+
+        if (ctx.label_text_format)
+        {
+            ctx.label_text_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+            ctx.label_text_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+            ctx.label_text_format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);
+        }
+
         ctx.canvas_rect = canvas_from_size(size.width, size.height);
         ctx.diagram     = diagram;
 
@@ -208,15 +223,15 @@ namespace ui::win32::d2d
             {
                 BSTR label = nullptr;
                 props->GetString(L"label", &label);
-                if (label && label[0] && ctx.status_text_format)
+                if (label && label[0] && ctx.label_text_format)
                 {
                     ComPtr<ID2D1SolidColorBrush> text_br;
                     ctx.renderTarget->CreateSolidColorBrush(
                         D2D1::ColorF(D2D1::ColorF::Black), text_br.GetAddressOf());
-                    D2D1_RECT_F tr = D2D1::RectF(x + 2.f, y + 2.f, x + w - 2.f, y + h - 2.f);
+                    D2D1_RECT_F tr = D2D1::RectF(x + 4.f, y + 4.f, x + w - 4.f, y + h - 4.f);
                     ctx.renderTarget->DrawText(
                         label, static_cast<UINT32>(wcslen(label)),
-                        ctx.status_text_format.Get(), tr, text_br.Get());
+                        ctx.label_text_format.Get(), tr, text_br.Get());
                     SysFreeString(label);
                 }
                 else if (label) SysFreeString(label);

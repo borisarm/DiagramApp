@@ -66,6 +66,7 @@ export namespace ui::win32::d2d
         // DirectWrite
         Microsoft::WRL::ComPtr<IDWriteFactory>        dwrite_factory;
         Microsoft::WRL::ComPtr<IDWriteTextFormat>     status_text_format;
+        Microsoft::WRL::ComPtr<IDWriteTextFormat>     label_text_format;
 
         const domain::Diagram*           diagram         = nullptr;
         const std::vector<IShape*>*        selected_shapes = nullptr;
