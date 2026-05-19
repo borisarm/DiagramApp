@@ -21,6 +21,7 @@ import ui.win32.addconnectortool;
 import ui.win32.stencil;
 import ui.win32.properties;
 import ui.win32.tool;
+import domain.serializer;
 
 using Microsoft::WRL::ComPtr;
 using ui::win32::d2d::D2DContext;
@@ -267,12 +268,64 @@ namespace
 		}
 	}
 
-	void on_key_down(WPARAM wParam)
+	// ── File dialogs ────────────────────────────────────────────────────────
+	void do_save()
+	{
+		wchar_t path[MAX_PATH] = {};
+		OPENFILENAMEW ofn{};
+		ofn.lStructSize     = sizeof(ofn);
+		ofn.hwndOwner       = g_hwnd;
+		ofn.lpstrFilter     = L"Diagram files (*.dgm)\0*.dgm\0All files\0*.*\0";
+		ofn.lpstrDefExt     = L"dgm";
+		ofn.lpstrFile       = path;
+		ofn.nMaxFile        = MAX_PATH;
+		ofn.Flags           = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+		ofn.lpstrTitle      = L"Save Diagram";
+		if (GetSaveFileNameW(&ofn))
+			domain::save_diagram(ui::win32::g_diagram, path);
+	}
+
+	void do_load()
+	{
+		wchar_t path[MAX_PATH] = {};
+		OPENFILENAMEW ofn{};
+		ofn.lStructSize     = sizeof(ofn);
+		ofn.hwndOwner       = g_hwnd;
+		ofn.lpstrFilter     = L"Diagram files (*.dgm)\0*.dgm\0All files\0*.*\0";
+		ofn.lpstrDefExt     = L"dgm";
+		ofn.lpstrFile       = path;
+		ofn.nMaxFile        = MAX_PATH;
+		ofn.Flags           = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+		ofn.lpstrTitle      = L"Open Diagram";
+		if (GetOpenFileNameW(&ofn))
+		{
+			if (domain::load_diagram(ui::win32::g_diagram, path, g_registry))
+			{
+				// Deselect everything and refresh
+				g_select_tool->on_deactivate();
+				g_select_tool->on_activate();
+				sync_render_state();
+				InvalidateRect(g_hwnd, nullptr, FALSE);
+			}
+			else
+			{
+				MessageBoxW(g_hwnd, L"Failed to load diagram.", L"Error", MB_ICONERROR);
+			}
+		}
+	}
+
+	void on_key_down(HWND hwnd, WPARAM wParam)
 	{
 		if (wParam == VK_SPACE) { g_space_down = true; return; }
 
+		const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+
+		// Ctrl+S – save, Ctrl+O – open
+		if (ctrl && wParam == 'S') { do_save(); return; }
+		if (ctrl && wParam == 'O') { do_load(); return; }
+
 		// Ctrl+0 – reset view
-		if (wParam == '0' && (GetKeyState(VK_CONTROL) & 0x8000))
+		if (ctrl && wParam == '0')
 		{
 			g_d2d.view = ui::win32::d2d::ViewTransform{};
 			InvalidateRect(g_hwnd, nullptr, FALSE);
@@ -297,9 +350,9 @@ namespace
 
 		ui::win32::KeyEvent e{};
 		e.key   = static_cast<int>(wParam);
-		e.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
-		e.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-		e.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+		e.shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+		e.ctrl  = ctrl;
+		e.alt   = (GetKeyState(VK_MENU)  & 0x8000) != 0;
 		g_tool_manager.dispatch_key_down(e);
 	}
 
@@ -362,7 +415,7 @@ namespace
 		case WM_MBUTTONUP:   on_mbutton_up(wParam, lParam);          return 0;
 		case WM_MOUSEWHEEL:  on_mouse_wheel(hwnd, wParam, lParam);   return 0;
 
-		case WM_KEYDOWN: on_key_down(wParam); return 0;
+		case WM_KEYDOWN: on_key_down(hwnd, wParam); return 0;
 		case WM_KEYUP:   on_key_up(wParam);   return 0;
 		}
 

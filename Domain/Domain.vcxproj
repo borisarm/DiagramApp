@@ -157,6 +157,8 @@
   <ItemGroup>
     <ClCompile Include="domain.diagram.cpp" />
     <ClCompile Include="domain.diagram.ixx" />
+    <ClCompile Include="domain.serializer.cpp" />
+    <ClCompile Include="domain.serializer.ixx" />
     <ClCompile Include="domain.shape_impls.cpp" />
     <ClCompile Include="domain.shape_registry.cpp" />
     <ClCompile Include="domain.shape_registry.ixx" />

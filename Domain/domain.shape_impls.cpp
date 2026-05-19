@@ -153,14 +153,22 @@ struct CRectangleShape : public ComBase<IShape>
 
 	HRESULT STDMETHODCALLTYPE Serialize(BSTR* pOut) override
 	{
-		wchar_t buf[256];
-		swprintf_s(buf, L"{\"type\":\"rectangle\","
-						L"\"x\":%.2f,\"y\":%.2f,\"w\":%.2f,\"h\":%.2f}",
-				   m_x, m_y, m_w, m_h);
+		wchar_t buf[512];
+		swprintf_s(buf,
+			L"{\"class\":\"com.diagramapp.rectangle\","
+			L"\"x\":%.4f,\"y\":%.4f,\"w\":%.4f,\"h\":%.4f,"
+			L"\"fill_color\":%u,\"stroke_color\":%u,\"label\":\"%s\"}",
+			m_x, m_y, m_w, m_h,
+			m_style.fill_color, m_style.stroke_color,
+			m_style.label.c_str());
 		*pOut = bstr(buf);
 		return S_OK;
 	}
-	HRESULT STDMETHODCALLTYPE Deserialize(BSTR) override { return E_NOTIMPL; }
+	HRESULT STDMETHODCALLTYPE Deserialize(BSTR in) override
+	{
+		// Parsed externally by the serializer; this path is not used directly.
+		(void)in; return E_NOTIMPL;
+	}
 
 	HRESULT STDMETHODCALLTYPE GetShapeClass(IShapeClass** ppClass) override;
 
@@ -353,14 +361,21 @@ struct CEllipseShape : public ComBase<IShape>
 
 	HRESULT STDMETHODCALLTYPE Serialize(BSTR* pOut) override
 	{
-		wchar_t buf[256];
-		swprintf_s(buf, L"{\"type\":\"ellipse\","
-						L"\"x\":%.2f,\"y\":%.2f,\"w\":%.2f,\"h\":%.2f}",
-				   m_x, m_y, m_w, m_h);
+		wchar_t buf[512];
+		swprintf_s(buf,
+			L"{\"class\":\"com.diagramapp.ellipse\","
+			L"\"x\":%.4f,\"y\":%.4f,\"w\":%.4f,\"h\":%.4f,"
+			L"\"fill_color\":%u,\"stroke_color\":%u,\"label\":\"%s\"}",
+			m_x, m_y, m_w, m_h,
+			m_style.fill_color, m_style.stroke_color,
+			m_style.label.c_str());
 		*pOut = bstr(buf);
 		return S_OK;
 	}
-	HRESULT STDMETHODCALLTYPE Deserialize(BSTR) override { return E_NOTIMPL; }
+	HRESULT STDMETHODCALLTYPE Deserialize(BSTR in) override
+	{
+		(void)in; return E_NOTIMPL;
+	}
 
 	HRESULT STDMETHODCALLTYPE GetShapeClass(IShapeClass** ppClass) override;
 

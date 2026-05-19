@@ -25,6 +25,12 @@
     <ClCompile Include="domain.shape_registry.ixx">
       <Filter>Module Files</Filter>
     </ClCompile>
+    <ClCompile Include="domain.serializer.ixx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="domain.serializer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="shape_interfaces.h" />
